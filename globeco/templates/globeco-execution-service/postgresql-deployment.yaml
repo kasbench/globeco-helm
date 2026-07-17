@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-execution-service-postgresql-headless
+  namespace: globeco
+spec:
+  clusterIP: None
+  selector:
+    app: globeco-execution-service-postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-execution-service-postgresql
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-execution-service-postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-execution-service-postgresql
+  namespace: globeco
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-execution-service-postgresql
+  template:
+    metadata:
+      labels:
+        app: globeco-execution-service-postgresql
+    spec:
+      initContainers:
+        - name: init-postgres-data
+          image: busybox:1.35
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /mnt/postgres-data/pgdata
+              chown -R 999:999 /mnt/postgres-data
+              chmod 755 /mnt/postgres-data
+              chmod 700 /mnt/postgres-data/pgdata
+          volumeMounts:
+            - name: globeco-execution-service-postgresdb-storage
+              mountPath: /mnt/postgres-data
+      containers:
+        - name: globeco-execution-service-postgresql
+          image: postgres:18.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: "trust"
+            - name: PGDATA
+              value: "/mnt/postgres-data/pgdata"
+          args:
+            - "-c"
+            - "listen_addresses=0.0.0.0"
+          volumeMounts:
+            - name: globeco-execution-service-postgresdb-storage
+              mountPath: /mnt/postgres-data
+      volumes:
+        - name: globeco-execution-service-postgresdb-storage
+          persistentVolumeClaim:
+            claimName: execution-service-postgres-pvc

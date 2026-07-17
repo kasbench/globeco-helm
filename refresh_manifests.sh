@@ -1,0 +1,1 @@
+uv run src/refresh_manifests.py
