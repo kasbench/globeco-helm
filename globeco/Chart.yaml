@@ -22,3 +22,13 @@ version: 0.1.0
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
 appVersion: "1.0.0"
+
+icon: https://kasbench-public-377288663341-us-east-1-an.s3.us-east-1.amazonaws.com/globeco-logo.png
+
+dependencies:
+  - name: prometheus
+    version: 26.0.0
+    repository: https://prometheus-community.github.io/helm-charts
+  - name: gateway-helm
+    version: v1.8.2
+    repository: oci://docker.io/envoyproxy

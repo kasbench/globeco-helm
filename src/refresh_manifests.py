@@ -1,4 +1,6 @@
 from pathlib import Path
+import urllib.request
+
 
 # Get the current working directory and go up one level to the parent directory
 parent_dir = Path.cwd().parent
@@ -38,6 +40,51 @@ for subdir in parent_dir.iterdir():
                     # copy the filename to subdir_templates_dir
                     (subdir_templates_dir / filename).write_text((subdir / "k8s_aws" / filename).read_text())
 
+# Special logic for the Prometheus valuse file
+prometheus_values_file = parent_dir / "globeco-observability" / "k8s_aws" / "values_prometheus.yaml"
+print("Prometheus values file: ", prometheus_values_file)
+if prometheus_values_file.exists():
+    # Edit the globeco/values.yaml file by deleting everything between 
+    # "# START PROMETHEUS VALUES" and "# END PROMETHEUS VALUES" and replacing it with the contents of the prometheus-values.yaml file
+    # The section starts with "prometheus:" and is followed by the content of the file.  
+    # Each line of the file must be indented two spaces.  
+    values_file = Path.cwd() / "globeco" / "values.yaml"
+    print("Values file: ", values_file)
+
+    if values_file.exists():
+        print("Editing values file...")
+        with open(values_file, 'r') as f:
+            lines = f.readlines()
+
+        with open(values_file, 'w') as f:
+            write = True
+            for line in lines:
+                if line.strip() == "# START PROMETHEUS VALUES":
+                    write = False
+                    f.write(line)
+                    f.write("prometheus:\n")
+                    # read the prometheus-values.yaml file and write it to the values.yaml file with 2 space indentation
+                    with open(prometheus_values_file, 'r') as pf:
+                        pf_lines = pf.readlines()
+                        for pf_line in pf_lines:
+                            f.write("  " + pf_line)
+                elif line.strip() == "# END PROMETHEUS VALUES":
+                    write = True
+                    f.write(line)
+                elif write:
+                    f.write(line)
+
+# Special logic for OpenTelemetry
+# Create a template directory called opentelemetry-collector
+opentelemetry_template_dir = templates_dir / "opentelemetry-collector"
+opentelemetry_template_dir.mkdir(exist_ok=True)
+# Get https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml and save it in the opentelemetry_template_dir
+urllib.request.urlretrieve("https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml", opentelemetry_template_dir / "cert-manager.yaml")
+# Get https://github.com/open-telemetry/opentelemetry-operator/releases/latest/download/opentelemetry-operator.yaml
+urllib.request.urlretrieve("https://github.com/open-telemetry/opentelemetry-operator/releases/latest/download/opentelemetry-operator.yaml", opentelemetry_template_dir / "opentelemetry-operator.yaml")
+
+
+    
 
 
 
