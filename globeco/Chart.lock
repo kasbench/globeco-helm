@@ -8,5 +8,11 @@ dependencies:
 - name: aws-ebs-csi-driver
   repository: https://kubernetes-sigs.github.io/aws-ebs-csi-driver
   version: 2.62.0
-digest: sha256:2fcceadf627a0a3aab7f6b5e490db56a2de5ad38b52de94ed0f49216373c9406
-generated: "2026-07-18T12:13:59.244269-04:00"
+- name: cert-manager
+  repository: https://charts.jetstack.io
+  version: v1.20.3
+- name: opentelemetry-operator
+  repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+  version: 0.120.0
+digest: sha256:91f473e197e523e86d346d807ab890bc3b6b28c25de7f10130368f20694cafac
+generated: "2026-07-18T14:51:27.311666-04:00"

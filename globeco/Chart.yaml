@@ -35,3 +35,9 @@ dependencies:
   - name: aws-ebs-csi-driver
     version: 2.62.0
     repository: https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+  - name: cert-manager
+    version: v1.20.3
+    repository: https://charts.jetstack.io
+  - name: opentelemetry-operator
+    version: 0.120.0
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
