@@ -75,13 +75,11 @@ if prometheus_values_file.exists():
                     f.write(line)
 
 # Special logic for OpenTelemetry
-# Create a template directory called opentelemetry-collector
-opentelemetry_template_dir = templates_dir / "opentelemetry-collector"
-opentelemetry_template_dir.mkdir(exist_ok=True)
-# Get https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml and save it in the opentelemetry_template_dir
-urllib.request.urlretrieve("https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml", opentelemetry_template_dir / "cert-manager.yaml")
-# Get https://github.com/open-telemetry/opentelemetry-operator/releases/latest/download/opentelemetry-operator.yaml
-urllib.request.urlretrieve("https://github.com/open-telemetry/opentelemetry-operator/releases/latest/download/opentelemetry-operator.yaml", opentelemetry_template_dir / "opentelemetry-operator.yaml")
+# cert-manager and opentelemetry-operator are installed as prerequisites (not as Helm templates)
+# because their CRDs must exist before the main chart can reference them.
+# Install them separately before deploying this chart:
+#   helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set installCRDs=true
+#   helm install opentelemetry-operator open-telemetry/opentelemetry-operator --namespace opentelemetry-operator-system --create-namespace
 
 
     
