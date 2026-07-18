@@ -5,5 +5,8 @@ dependencies:
 - name: gateway-helm
   repository: oci://docker.io/envoyproxy
   version: v1.8.2
-digest: sha256:c371e6864d00d2b0772c24d42167d7109b764b13e458be21c82206619075fa65
-generated: "2026-07-18T11:16:21.989405-04:00"
+- name: aws-ebs-csi-driver
+  repository: https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+  version: 2.62.0
+digest: sha256:2fcceadf627a0a3aab7f6b5e490db56a2de5ad38b52de94ed0f49216373c9406
+generated: "2026-07-18T12:13:59.244269-04:00"
