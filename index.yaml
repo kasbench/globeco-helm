@@ -3,6 +3,28 @@ entries:
   globeco:
   - apiVersion: v2
     appVersion: 1.0.0
+    created: "2026-07-20T12:39:03.363621412Z"
+    dependencies:
+    - name: prometheus
+      repository: https://prometheus-community.github.io/helm-charts
+      version: 26.0.0
+    - name: gateway-helm
+      repository: oci://docker.io/envoyproxy
+      version: v1.8.2
+    - name: aws-ebs-csi-driver
+      repository: https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+      version: 2.62.0
+    description: A Helm chart for the GlobeCo application, part of the KASBench autoscaling
+      benchmark
+    digest: 30caeb452f8c9045ceb7f2ce18ba9f26287de35990df01566f926d83acc6e3c1
+    icon: https://kasbench-public-377288663341-us-east-1-an.s3.us-east-1.amazonaws.com/globeco-logo.png
+    name: globeco
+    type: application
+    urls:
+    - https://github.com/kasbench/globeco-helm/releases/download/globeco-0.1.1/globeco-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: 1.0.0
     created: "2026-07-19T13:00:05.145451415Z"
     dependencies:
     - name: prometheus
@@ -23,4 +45,4 @@ entries:
     urls:
     - https://github.com/kasbench/globeco-helm/releases/download/globeco-0.1.0/globeco-0.1.0.tgz
     version: 0.1.0
-generated: "2026-07-19T13:00:05.145461894Z"
+generated: "2026-07-20T12:39:03.363635949Z"
