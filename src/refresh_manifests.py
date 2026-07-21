@@ -40,6 +40,17 @@ for subdir in parent_dir.iterdir():
                     # copy the filename to subdir_templates_dir
                     (subdir_templates_dir / filename).write_text((subdir / "k8s_aws" / filename).read_text())
 
+
+# Iterate through every file under globeco/templates recursively and change every occurence of the literal "monitoring" to "globeco"
+for file in templates_dir.rglob('*'):
+    if file.is_file():
+        print("Editing file: ", file)
+        contents = file.read_text()
+        contents = contents.replace('monitoring', 'globeco')
+        file.write_text(contents)
+
+
+
 # Special logic for the Prometheus valuse file
 
 # prometheus_values_file = parent_dir / "globeco-observability" / "k8s_aws" / "values_prometheus.yaml"

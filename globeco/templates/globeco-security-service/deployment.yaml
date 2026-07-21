@@ -23,7 +23,7 @@ spec:
             - containerPort: 8000
           env:
             # - name: OTEL_EXPORTER_OTLP_ENDPOINT
-            #   value: "otel-collector-daemonset-collector.monitoring.svc.cluster.local:4317"
+            #   value: "otel-collector-daemonset-collector.globeco.svc.cluster.local:4317"
             # Inject the node IP from the Downward API
             - name: NODE_IP
               valueFrom:

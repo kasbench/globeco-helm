@@ -1,9 +1,9 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: monitoring
-  labels:
-    app.kubernetes.io/managed-by: Helm
-  annotations:
-    meta.helm.sh/release-name: globeco
-    meta.helm.sh/release-namespace: globeco
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: globeco
+#   labels:
+#     app.kubernetes.io/managed-by: Helm
+#   annotations:
+#     meta.helm.sh/release-name: globeco
+#     meta.helm.sh/release-namespace: globeco
