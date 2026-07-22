@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-debug-tools
+  namespace: globeco
+  labels:
+    app: globeco-debug-tools
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-debug-tools
+  template:
+    metadata:
+      labels:
+        app: globeco-debug-tools
+    spec:
+      containers:
+      - name: globeco-debug-tools
+        image: kasbench/globeco-debug-tools:latest
+        imagePullPolicy: Always
+        command: ["/bin/bash"]
+        tty: true
+        stdin: true 

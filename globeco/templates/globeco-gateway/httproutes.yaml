@@ -34,6 +34,12 @@ spec:
         - path:
             type: PathPrefix
             value: /allocations
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: globeco-allocation-service
           port: 8089
@@ -53,6 +59,12 @@ spec:
         - path:
             type: PathPrefix
             value: /confirmations
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: globeco-confirmation-service
           port: 80
@@ -72,6 +84,12 @@ spec:
         - path:
             type: PathPrefix
             value: /executions
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: globeco-execution-service
           port: 8084
@@ -91,6 +109,12 @@ spec:
         - path:
             type: PathPrefix
             value: /fix-engine
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: globeco-fix-engine-service
           port: 80
@@ -110,6 +134,12 @@ spec:
         - path:
             type: PathPrefix
             value: /order-gen
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: globeco-order-generation-service
           port: 8088
@@ -129,6 +159,12 @@ spec:
         - path:
             type: PathPrefix
             value: /orders
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: globeco-order-service
           port: 8081
@@ -148,6 +184,12 @@ spec:
         - path:
             type: PathPrefix
             value: /accounting
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: globeco-portfolio-accounting-service
           port: 8087
@@ -186,6 +228,12 @@ spec:
         - path:
             type: PathPrefix
             value: /portfolios
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: globeco-portfolio-service
           port: 8000
@@ -205,6 +253,12 @@ spec:
         - path:
             type: PathPrefix
             value: /pricing
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: globeco-pricing-service
           port: 8083
@@ -224,6 +278,12 @@ spec:
         - path:
             type: PathPrefix
             value: /securities
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: globeco-security-service
           port: 8000
@@ -243,6 +303,12 @@ spec:
         - path:
             type: PathPrefix
             value: /trades
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: globeco-trade-service
           port: 8082
