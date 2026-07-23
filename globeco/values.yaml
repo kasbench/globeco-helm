@@ -1,5 +1,7 @@
 # GlobeCo Helm Chart Values File
 
+executionDataFs: none
+
 autoscaler: hpa
 
 hpa:

@@ -16,6 +16,7 @@ spec:
       labels:
         app: globeco-allocation-service
     spec:
+      serviceAccountName: allocation-service-sa
       containers:
       - name: globeco-allocation-service
         image: kasbench/globeco-allocation-service-server:1.0.2
@@ -102,15 +103,10 @@ spec:
           limits:
             memory: "100Mi"
             cpu: "200m"
-        # volumeMounts:
-        # - name: tmp-files
-        #   mountPath: /tmp/files
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: allocation-service-data
+          claimName: {{ .Release.Name }}-efs-pvc 
       - name: tmp
         emptyDir:
           sizeLimit: 1Gi
-      
-      
