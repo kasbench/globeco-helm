@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-debug-tools
+  namespace: globeco
+  labels:
+    app: globeco-debug-tools
+spec:
+  selector:
+    app: globeco-debug-tools
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP 
