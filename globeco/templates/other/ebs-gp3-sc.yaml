@@ -1,7 +1,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: ebs-gp3
+  name: ebs-gp3-old-ignore
 provisioner: ebs.csi.aws.com
 parameters:
   type: gp3
