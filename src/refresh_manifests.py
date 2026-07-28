@@ -49,6 +49,17 @@ for file in templates_dir.rglob('*'):
         contents = contents.replace('monitoring', 'globeco')
         file.write_text(contents)
 
+# Iterate through every file under globeco/templates recursively and change every occurence of the literal 
+# "(slice "hpa" "keda")" to "(list "hpa" "keda")"
+for file in templates_dir.rglob('*'):
+    if file.is_file():
+        print("Editing file: ", file)
+        contents = file.read_text()
+        contents = contents.replace('(slice "hpa" "keda")', '(list "hpa" "keda")')
+        file.write_text(contents)
+
+
+
 
 
 # Special logic for the Prometheus valuse file
