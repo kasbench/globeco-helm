@@ -44,7 +44,8 @@ spec:
         - name: globeco-allocation-service
           port: 8089
       timeouts:
-        request: 120s
+        request: 60s
+        backendRequest: 60s
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -71,7 +72,8 @@ spec:
         - name: globeco-confirmation-service
           port: 80
       timeouts:
-        request: 120s
+        request: 60s
+        backendRequest: 60s
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -98,7 +100,8 @@ spec:
         - name: globeco-execution-service
           port: 8084
       timeouts:
-        request: 120s
+        request: 60s
+        backendRequest: 60s
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -125,7 +128,8 @@ spec:
         - name: globeco-fix-engine-service
           port: 80
       timeouts:
-        request: 120s
+        request: 60s
+        backendRequest: 60s
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -152,7 +156,8 @@ spec:
         - name: globeco-order-generation-service
           port: 8088
       timeouts:
-        request: 120s
+        request: 60s
+        backendRequest: 60s
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -179,7 +184,8 @@ spec:
         - name: globeco-order-service
           port: 8081
       timeouts:
-        request: 120s
+        request: 60s
+        backendRequest: 60s
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -206,7 +212,8 @@ spec:
         - name: globeco-portfolio-accounting-service
           port: 8087
       timeouts:
-        request: 120s
+        request: 60s
+        backendRequest: 60s
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -227,7 +234,8 @@ spec:
         - name: globeco-portfolio-management-portal
           port: 3000
       timeouts:
-        request: 120s
+        request: 60s
+        backendRequest: 60s
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -254,7 +262,8 @@ spec:
         - name: globeco-portfolio-service
           port: 8000
       timeouts:
-        request: 120s
+        request: 60s
+        backendRequest: 60s
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -281,7 +290,8 @@ spec:
         - name: globeco-pricing-service
           port: 8083
       timeouts:
-        request: 120s
+        request: 60s
+        backendRequest: 60s
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -308,7 +318,8 @@ spec:
         - name: globeco-security-service
           port: 8000
       timeouts:
-        request: 120s
+        request: 60s
+        backendRequest: 60s
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -335,4 +346,5 @@ spec:
         - name: globeco-trade-service
           port: 8082
       timeouts:
-        request: 120s
+        request: 60s
+        backendRequest: 60s
