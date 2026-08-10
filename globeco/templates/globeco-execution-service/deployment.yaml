@@ -40,6 +40,11 @@ spec:
               value: "http://$(NODE_IP):4318/v1/traces"
             - name: DEBUG_LEVEL
               value: "INFO"
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: NotRequired
+            - resourceName: memory
+              restartPolicy: RestartContainer
           resources:
             requests:
               cpu: 720m
