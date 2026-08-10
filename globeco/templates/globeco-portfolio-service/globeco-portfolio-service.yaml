@@ -90,7 +90,7 @@ spec:
               restartPolicy: NotRequired
             - resourceName: memory
               restartPolicy: RestartContainer
-         resources:
+          resources:
             requests:
               cpu: "200m"
               memory: "300Mi"
