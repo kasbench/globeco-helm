@@ -1,5 +1,6 @@
 from pathlib import Path
 import urllib.request
+import json
 
 
 # Get the current working directory and go up one level to the parent directory
@@ -57,6 +58,73 @@ for file in templates_dir.rglob('*'):
         contents = file.read_text()
         contents = contents.replace('(slice "hpa" "keda")', '(list "hpa" "keda")')
         file.write_text(contents)
+
+# Store the contents of json file ../data/cpu_usage.json as a dictionary
+cpu_usage = json.load(open('./data/cpu_usage.json'))   
+
+# Iterate through every file under globeco/templates, skip if not a file.  If the file is a deployment manifest,
+# change the resource request to the "max" value in cpu_usage for that deployment's name, converting the value from 
+# cores to millicores by multiplying by 1000 and rounding up. Note that deployment won't always be in the file name. 
+# Look inside the file to see if it is a deployment by looking for `kind: Deployment`.  Ignore deployments that don't
+# start with `globeco` in their name.abs
+for file in templates_dir.rglob('*'):
+    if file.is_file():
+        print("Editing file: ", file)
+        contents = file.read_text()
+        if 'kind: Deployment' in contents and 'globeco' in contents:
+            # Get the deployment name from the metadata.name field
+            lines = contents.split('\n')
+            deployment_name = ""
+            for line in lines:
+                if 'metadata:' in line:
+                    # Find the next line that starts with "  name:"
+                    for next_line in lines[lines.index(line):]:
+                        if next_line.strip().startswith("name:"):
+                            deployment_name = next_line.strip().split(":")[1].strip()
+                            break
+                    break
+
+            print("Deployment name: ", deployment_name)
+            if deployment_name in cpu_usage and deployment_name.startswith("globeco"):
+                # Get the max CPU usage for this deployment
+                max_cpu = cpu_usage[deployment_name]["max"]
+                # Convert to millicores
+                max_cpu_millicores = max(round(max_cpu * 1000/0.70), 50)
+                print("Max CPU: ", max_cpu, "Millicores: ", max_cpu_millicores)
+                # Replace the resource request with the new value
+                # Find the line that contains "requests:" and the next line that contains "cpu:"
+                # Replace the value after "cpu:" with the new value
+                lines = contents.split('\n')
+                for i, line in enumerate(lines):
+                    if 'requests:' in line:
+                        # Find the next line that contains "cpu:"
+                        for j in range(i+1, len(lines)):
+                            if 'cpu:' in lines[j]:
+                                # Replace the value after "cpu:" with the new value, in double quotes
+                                lines[j] = lines[j].split(':')[0] + ': ' + '"' + str(max_cpu_millicores) + 'm' + '"'
+                                break
+                        break
+            
+                # If the limit is less than or equal to the max_cpu_millicores, change the limit to 
+                # twice the max_cpu_millicores 
+                for i, line in enumerate(lines):
+                    if 'limits:' in line:
+                        # Find the next line that contains "cpu:"
+                        for j in range(i+1, len(lines)):
+                            if 'cpu:' in lines[j]:
+                                # If the limit is less than or equal to the max_cpu_millicores, change the limit to
+                                # twice the max_cpu_millicores
+                                limit_line = lines[j]
+                                limit_value = limit_line.split(':')[1].strip().replace('"', '').replace('m', '')
+                                if int(limit_value) <= max_cpu_millicores:
+                                    # Replace the value after "cpu:" with the new value, in double quotes
+                                    lines[j] = lines[j].split(':')[0] + ': ' + '"' + str(max_cpu_millicores * 2) + 'm' + '"'
+                                break
+                        break
+
+                contents = '\n'.join(lines)
+                file.write_text(contents)
+
 
 
 

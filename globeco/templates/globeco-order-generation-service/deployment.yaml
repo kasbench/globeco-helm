@@ -82,7 +82,7 @@ spec:
               restartPolicy: RestartContainer
           resources:
             requests:
-              cpu: "1000m"
+              cpu: "589m"
               memory: "700Mi"
             limits:
               cpu: "1000m"
