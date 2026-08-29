@@ -3,6 +3,22 @@ entries:
   globeco:
   - apiVersion: v2
     appVersion: 1.0.0
+    created: "2026-08-29T18:20:02.242734402Z"
+    dependencies:
+    - name: gateway-helm
+      repository: oci://docker.io/envoyproxy
+      version: v1.8.2
+    description: A Helm chart for the GlobeCo application, part of the KASBench autoscaling
+      benchmark
+    digest: ecce057b328b4b941a9ae85d39b85eeedebd0070ad2188936d13594f135c2e41
+    icon: https://kasbench-public-377288663341-us-east-1-an.s3.us-east-1.amazonaws.com/globeco-logo.png
+    name: globeco
+    type: application
+    urls:
+    - https://github.com/kasbench/globeco-helm/releases/download/globeco-0.1.35/globeco-0.1.35.tgz
+    version: 0.1.35
+  - apiVersion: v2
+    appVersion: 1.0.0
     created: "2026-08-29T16:59:23.669519762Z"
     dependencies:
     - name: gateway-helm
@@ -617,4 +633,4 @@ entries:
     urls:
     - https://github.com/kasbench/globeco-helm/releases/download/globeco-0.1.0/globeco-0.1.0.tgz
     version: 0.1.0
-generated: "2026-08-29T16:59:23.669690097Z"
+generated: "2026-08-29T18:20:02.24314421Z"
