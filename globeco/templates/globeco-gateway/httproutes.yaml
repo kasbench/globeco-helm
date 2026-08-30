@@ -44,8 +44,8 @@ spec:
         - name: globeco-allocation-service
           port: 8089
       timeouts:
-        request: 60s
-        backendRequest: 60s
+        request: 120s
+        backendRequest: 120s
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
