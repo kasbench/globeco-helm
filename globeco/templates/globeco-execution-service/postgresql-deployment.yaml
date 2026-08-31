@@ -27,11 +27,12 @@ spec:
   type: ClusterIP
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: globeco-execution-service-postgresql
   namespace: globeco
 spec:
+  serviceName: globeco-execution-service-postgresql-headless
   replicas: 1
   selector:
     matchLabels:
@@ -75,7 +76,15 @@ spec:
           volumeMounts:
             - name: globeco-execution-service-postgresdb-storage
               mountPath: /mnt/postgres-data
-      volumes:
-        - name: globeco-execution-service-postgresdb-storage
-          persistentVolumeClaim:
-            claimName: execution-service-postgres-pvc
+  volumeClaimTemplates:
+    - metadata:
+        name: globeco-execution-service-postgresdb-storage
+        labels:
+          app: globeco-execution-service-postgresql
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: ebs-gp3
+        resources:
+          requests:
+            storage: 10Gi
