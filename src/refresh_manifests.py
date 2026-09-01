@@ -116,6 +116,7 @@ for file in templates_dir.rglob('*'):
                                 # twice the max_cpu_millicores
                                 limit_line = lines[j]
                                 limit_value = limit_line.split(':')[1].strip().replace('"', '').replace('m', '')
+                                print("Limit value: ", limit_value)
                                 if int(limit_value) <= max_cpu_millicores:
                                     # Replace the value after "cpu:" with the new value, in double quotes
                                     lines[j] = lines[j].split(':')[0] + ': ' + '"' + str(max_cpu_millicores * 2) + 'm' + '"'
