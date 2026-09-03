@@ -4,7 +4,22 @@ metadata:
   name: globeco-execution-service
   namespace: globeco
 spec:
+  {{- if eq .Values.autoscaler "vpa" }}
+  replicas: 2
+  {{- else }}
   replicas: 1
+  {{- end }}
+
+  # A newly-ready pod must remain ready for 10 seconds before
+  # the Deployment considers it available.
+  minReadySeconds: 10
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+
   selector:
     matchLabels:
       app: globeco-execution-service
@@ -78,4 +93,19 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 20
       restartPolicy: Always
+
+{{- if eq .Values.autoscaler "vpa" }}
 ---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: globeco-execution-service-pdb
+  namespace: globeco
+
+spec:
+  minAvailable: 1
+
+  selector:
+    matchLabels:
+      app: globeco-execution-service
+{{- end }}
