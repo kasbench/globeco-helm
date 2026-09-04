@@ -126,7 +126,25 @@ for file in templates_dir.rglob('*'):
                 contents = '\n'.join(lines)
                 file.write_text(contents)
 
+# Iterate through every file under globeco/templates, skip if not a file.  If the file is named "vpa.yaml",
+# change minAllowed.cpu from 100m to 25m.  
+for file in templates_dir.rglob('vpa.yaml'):
+    print("Editing file: ", file)
+    contents = file.read_text()
+    # Replace "minAllowed:" with "minAllowed:" and "  cpu: 100m" with "  cpu: 25m"
+    lines = contents.split('\n')
+    for i, line in enumerate(lines):
+        if 'minAllowed:' in line:
+            # Find the next line that contains "cpu:"
+            for j in range(i+1, len(lines)):
+                if 'cpu:' in lines[j]:
+                    # Replace the value after "cpu:" with "25m"
+                    lines[j] = lines[j].split(':')[0] + ': 25m'
+                    break
+            break
 
+    contents = '\n'.join(lines)
+    file.write_text(contents)
 
 
 
