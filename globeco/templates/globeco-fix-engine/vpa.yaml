@@ -2,26 +2,28 @@
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
-  name: globeco-fix-engine-vpa
-  namespace: globeco
   labels:
     app: globeco-fix-engine
+  name: globeco-fix-engine-vpa
+  namespace: globeco
 spec:
+  resourcePolicy:
+    containerPolicies:
+    - containerName: globeco-fix-engine
+      controlledResources:
+      - cpu
+      - memory
+      controlledValues: RequestsAndLimits
+      maxAllowed:
+        cpu: 6000m
+        memory: 6Gi
+      minAllowed:
+        cpu: 148m
+        memory: 100Mi
   targetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: globeco-fix-engine
   updatePolicy:
-    updateMode: "InPlaceOrRecreate"
-  resourcePolicy:
-    containerPolicies:
-      - containerName: globeco-fix-engine
-        minAllowed:
-          cpu: 25m
-          memory: 200Mi
-        maxAllowed:
-          cpu: 2000m
-          memory: 2Gi
-        controlledResources: ["cpu", "memory"]
-        controlledValues: RequestsAndLimits
+    updateMode: InPlaceOrRecreate
 {{- end -}}

@@ -2,26 +2,28 @@
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
-  name: globeco-pricing-service-vpa
-  namespace: globeco
   labels:
     app: globeco-pricing-service
+  name: globeco-pricing-service-vpa
+  namespace: globeco
 spec:
+  resourcePolicy:
+    containerPolicies:
+    - containerName: globeco-pricing-service
+      controlledResources:
+      - cpu
+      - memory
+      controlledValues: RequestsAndLimits
+      maxAllowed:
+        cpu: 6000m
+        memory: 6Gi
+      minAllowed:
+        cpu: 156m
+        memory: 100Mi
   targetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: globeco-pricing-service
   updatePolicy:
-    updateMode: "InPlaceOrRecreate"
-  resourcePolicy:
-    containerPolicies:
-      - containerName: globeco-pricing-service
-        minAllowed:
-          cpu: 25m
-          memory: 200Mi
-        maxAllowed:
-          cpu: 2000m
-          memory: 2Gi
-        controlledResources: ["cpu", "memory"]
-        controlledValues: RequestsAndLimits
+    updateMode: InPlaceOrRecreate
 {{- end -}}

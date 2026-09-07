@@ -1,6 +1,8 @@
 from pathlib import Path
 import urllib.request
 import json
+import yaml
+    
 
 
 # Get the current working directory and go up one level to the parent directory
@@ -127,24 +129,91 @@ for file in templates_dir.rglob('*'):
                 file.write_text(contents)
 
 # Iterate through every file under globeco/templates, skip if not a file.  If the file is named "vpa.yaml",
-# change minAllowed.cpu from 100m to 25m.  
+# change minAllowed.cpu from 100m to 50m.  
+# for file in templates_dir.rglob('vpa.yaml'):
+#     print("Editing file: ", file)
+#     contents = file.read_text()
+#     # Replace "cpu: 100m" with "cpu: 50m"
+#     lines = contents.split('\n')
+#     for i, line in enumerate(lines):
+#         if 'minAllowed:' in line:
+#             # Find the next line that contains "cpu:"
+#             for j in range(i+1, len(lines)):
+#                 if 'cpu:' in lines[j]:
+#                     # Replace the value after "cpu:" with "50m"
+#                     lines[j] = lines[j].split(':')[0] + ': 50m'
+#                     break
+#             break
+
+#     contents = '\n'.join(lines)
+#     file.write_text(contents)
+
+# spec:
+#   targetRef:
+#     apiVersion: apps/v1
+#     kind: Deployment
+#     name: globeco-portfolio-service
+#   updatePolicy:
+#     updateMode: "InPlaceOrRecreate"
+#   resourcePolicy:
+#     containerPolicies:
+#       - containerName: globeco-portfolio-service
+#         minAllowed:
+#           cpu: 25m
+#           memory: 200Mi
+#         maxAllowed:
+#           cpu: 2000m
+#           memory: 2Gi
+#         controlledResources: ["cpu", "memory"]
+#         controlledValues: RequestsAndLimits
+
+print()
+print("Refreshing VPA")
+print()
+
 for file in templates_dir.rglob('vpa.yaml'):
     print("Editing file: ", file)
-    contents = file.read_text()
-    # Replace "minAllowed:" with "minAllowed:" and "  cpu: 100m" with "  cpu: 25m"
-    lines = contents.split('\n')
-    for i, line in enumerate(lines):
-        if 'minAllowed:' in line:
-            # Find the next line that contains "cpu:"
-            for j in range(i+1, len(lines)):
-                if 'cpu:' in lines[j]:
-                    # Replace the value after "cpu:" with "25m"
-                    lines[j] = lines[j].split(':')[0] + ': 25m'
-                    break
-            break
 
-    contents = '\n'.join(lines)
-    file.write_text(contents)
+    # Read the file
+    contents = file.read_text()
+
+    # Strip out the lines beginning with "{{"
+    contents = '\n'.join([line for line in contents.split('\n') if not line.strip().startswith('{{')])
+    
+    # load file as a yaml file using the pyaml library
+    data = yaml.safe_load(contents)
+    
+    # Save spec.targetRef.name to a variable `deployment`
+    deployment_name = data['spec']['targetRef']['name']
+    
+    # Get the max CPU usage for this deployment
+    max_cpu = cpu_usage[deployment_name]["max"]
+    
+    # Convert to millicores
+    max_cpu_millicores = max(round(max_cpu * 1000/0.70), 50)
+
+    # Replace spec.resourcePolicy.container.policies.containerName.minAllowed.cpu with max_cpu_millicores for all values of containerName
+    for container_policy in data['spec']['resourcePolicy']['containerPolicies']:
+        container_policy['minAllowed']['cpu'] = str(max_cpu_millicores) + 'm'
+        container_policy['maxAllowed']['cpu'] = "6000m"
+        container_policy['maxAllowed']['memory'] = "6Gi"
+
+    # Dump the yaml to a string
+    data = yaml.dump(data, default_flow_style=False)
+
+    # Prefix the data with the line `{{- if eq .Values.autoscaler "vpa" -}}`
+    data = '{{- if eq .Values.autoscaler "vpa" -}}\n' + data
+
+    # Add the line `{{- end -}}` at the end
+    data = data + '{{- end -}}\n'
+
+    # Write the file
+    file.write_text(data)
+
+
+
+    
+
 
 
 

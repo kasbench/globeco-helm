@@ -1,7 +1,9 @@
 [project]
 name = "globeco-helm"
 version = "0.1.0"
-description = "Add your description here"
+description = "Helm project for the KASBench benchmark"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "pyaml>=26.7.0",
+]
