@@ -1,7 +1,9 @@
 from pathlib import Path
 import urllib.request
 import json
+import math
 import yaml
+
     
 
 
@@ -64,14 +66,65 @@ for file in templates_dir.rglob('*'):
 # Store the contents of json file ../data/cpu_usage.json as a dictionary
 cpu_usage = json.load(open('./data/cpu_usage.json'))   
 
-# Iterate through every file under globeco/templates, skip if not a file.  If the file is a deployment manifest,
-# change the resource request to the "max" value in cpu_usage for that deployment's name, converting the value from 
-# cores to millicores by multiplying by 1000 and rounding up. Note that deployment won't always be in the file name. 
-# Look inside the file to see if it is a deployment by looking for `kind: Deployment`.  Ignore deployments that don't
-# start with `globeco` in their name.abs
+# Update the resource requests and limits in all Deployment manifests
+
+for file in templates_dir.rglob("*"):
+    if not file.is_file():
+        continue
+
+    try:
+        data = yaml.safe_load(file.read_text())
+    except yaml.YAMLError:
+        continue
+
+    if not isinstance(data, dict):
+        continue
+
+    # Filter for globeco Deployment manifests
+    if data.get("kind") != "Deployment":
+        continue
+
+    name = data.get("metadata", {}).get("name", "")
+    if not name.startswith("globeco") or name not in cpu_usage.keys():
+        print(f"Skipping {name}")
+        continue
+
+    max_cpu = cpu_usage[name]["max"]
+    req_m = max(math.ceil(max_cpu * 1000 / 0.70), 50)
+    print(f"Name={name}, req_m={req_m}, max_cpu={max_cpu}")
+
+    # Update containers under spec.template.spec.containers
+    containers = data.get("spec", {}).get("template", {}).get("spec", {}).get("containers", [])
+    for container in containers:
+        resources = container.setdefault("resources", {})
+        requests = resources.setdefault("requests", {})
+        limits = resources.setdefault("limits", {})
+
+        requests["cpu"] = f"{req_m}m"
+
+        # Parse existing CPU limit (millicores or core count)
+        raw_limit = str(limits.get("cpu", "")).strip().strip('"')
+        if raw_limit:
+            if raw_limit.endswith("m"):
+                current_limit_m = int(raw_limit[:-1])
+            else:
+                current_limit_m = int(float(raw_limit) * 1000)
+
+            if current_limit_m <= req_m:
+                limits["cpu"] = f"{req_m * 2}m"
+
+    with file.open("w") as f:
+        yaml.safe_dump(data, f, sort_keys=False)
+
+
+# # Iterate through every file under globeco/templates, skip if not a file.  If the file is a deployment manifest,
+# # change the resource request to the "max" value in cpu_usage for that deployment's name, converting the value from 
+# # cores to millicores by multiplying by 1000 and rounding up. Note that deployment won't always be in the file name. 
+# # Look inside the file to see if it is a deployment by looking for `kind: Deployment`.  Ignore deployments that don't
+# # start with `globeco` in their name.abs
 # for file in templates_dir.rglob('*'):
 #     if file.is_file():
-#         # print("Editing file: ", file)
+#         print("Editing file: ", file)
 #         contents = file.read_text()
 #         if 'kind: Deployment' in contents and 'globeco' in contents:
 #             # Get the deployment name from the metadata.name field
@@ -128,13 +181,51 @@ cpu_usage = json.load(open('./data/cpu_usage.json'))
 #                 contents = '\n'.join(lines)
 #                 file.write_text(contents)
 
+# Iterate through every file under globeco/templates, skip if not a file.  If the file is named "vpa.yaml",
+# change minAllowed.cpu from 100m to 50m.  
+# for file in templates_dir.rglob('vpa.yaml'):
+#     print("Editing file: ", file)
+#     contents = file.read_text()
+#     # Replace "cpu: 100m" with "cpu: 50m"
+#     lines = contents.split('\n')
+#     for i, line in enumerate(lines):
+#         if 'minAllowed:' in line:
+#             # Find the next line that contains "cpu:"
+#             for j in range(i+1, len(lines)):
+#                 if 'cpu:' in lines[j]:
+#                     # Replace the value after "cpu:" with "50m"
+#                     lines[j] = lines[j].split(':')[0] + ': 50m'
+#                     break
+#             break
 
-# print()
-# print("Refreshing VPA")
-# print()
+#     contents = '\n'.join(lines)
+#     file.write_text(contents)
+
+# spec:
+#   targetRef:
+#     apiVersion: apps/v1
+#     kind: Deployment
+#     name: globeco-portfolio-service
+#   updatePolicy:
+#     updateMode: "InPlaceOrRecreate"
+#   resourcePolicy:
+#     containerPolicies:
+#       - containerName: globeco-portfolio-service
+#         minAllowed:
+#           cpu: 25m
+#           memory: 200Mi
+#         maxAllowed:
+#           cpu: 2000m
+#           memory: 2Gi
+#         controlledResources: ["cpu", "memory"]
+#         controlledValues: RequestsAndLimits
+
+print()
+print("Refreshing VPA")
+print()
 
 for file in templates_dir.rglob('vpa.yaml'):
-    # print("Editing file: ", file)
+    print("Editing file: ", file)
 
     # Read the file
     contents = file.read_text()

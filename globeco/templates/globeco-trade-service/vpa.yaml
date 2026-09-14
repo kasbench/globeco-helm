@@ -13,7 +13,7 @@ spec:
       controlledResources:
       - cpu
       - memory
-      controlledValues: RequestsAndLimits
+      controlledValues: RequestsOnly
       maxAllowed:
         cpu: 6000m
         memory: 6Gi
