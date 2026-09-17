@@ -18,7 +18,7 @@ spec:
         cpu: 6000m
         memory: 6Gi
       minAllowed:
-        cpu: 589m
+        cpu: 234m
         memory: 200Mi
   targetRef:
     apiVersion: apps/v1

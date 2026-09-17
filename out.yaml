@@ -1,0 +1,6481 @@
+---
+# Source: globeco/templates/other/elasticsearch-namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: elasticsearch
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: globeco
+    meta.helm.sh/release-namespace: globeco
+---
+# Source: globeco/templates/other/observability-namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: globeco
+    meta.helm.sh/release-namespace: globeco
+---
+# Source: globeco/charts/gateway-helm/templates/envoy-gateway-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: envoy-gateway
+  namespace: globeco
+  labels:
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: globeco/templates/globeco-allocation-service/rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: globeco-allocation-service
+  namespace: globeco
+  labels:
+    app: globeco-allocation-service
+---
+# Source: globeco/templates/globeco-observability/metrics_server_deployment.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server
+  namespace: kube-system
+---
+# Source: globeco/templates/globeco-observability/otel-collector-cluster-deployment.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: otel-collector-cluster
+  namespace: globeco
+---
+# Source: globeco/templates/globeco-observability/otel-collector-daemonset.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: otel-collector-daemonset
+  namespace: globeco
+---
+# Source: globeco/charts/gateway-helm/templates/envoy-gateway-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: envoy-gateway-config
+  namespace: globeco
+  labels:
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  envoy-gateway.yaml: |
+    apiVersion: gateway.envoyproxy.io/v1alpha1
+    kind: EnvoyGateway
+    extensionApis: {}
+    gateway:
+      controllerName: gateway.envoyproxy.io/gatewayclass-controller
+    logging:
+      level:
+        default: info
+    provider:
+      kubernetes:
+        rateLimitDeployment:
+          container:
+            image: docker.io/envoyproxy/ratelimit:1e50889b
+          patch:
+            type: StrategicMerge
+            value:
+              spec:
+                template:
+                  spec:
+                    containers:
+                    - imagePullPolicy: IfNotPresent
+                      name: envoy-ratelimit
+        shutdownManager:
+          image: docker.io/envoyproxy/gateway:v1.8.2
+      type: Kubernetes
+---
+# Source: globeco/templates/globeco-allocation-service/configmap-aws.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: allocation-service-config-aws
+  namespace: globeco
+  labels:
+    app: globeco-allocation-service
+    environment: aws
+data:
+  # Application configuration
+  PORT: "8089"
+  LOG_LEVEL: "info"
+  
+  # Database configuration
+  DATABASE_HOST: "globeco-allocation-service-postgresql"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "allocation_db"
+  DATABASE_USER: "postgres"
+  DATABASE_PASSWORD: ""
+  DATABASE_SSL_MODE: "disable"
+  
+  # External service configuration
+  TRADE_SERVICE_URL: "http://globeco-trade-service:8082"
+  
+  # File system configuration
+  OUTPUT_DIR: "/data"
+  CLI_COMMAND: "kubectl run --rm -i --tty portfolio-cli --image=globeco-portfolio-accounting-service-cli:latest --restart=Never -- process --file /data/transactions.csv --output-dir /data"
+  
+  # Feature flags (simplified for dev)
+  METRICS_ENABLED: "true"
+  TRACING_ENABLED: "true"
+  FILE_CLEANUP_ENABLED: "false"
+  
+  # Retry configuration
+  RETRY_MAX_ATTEMPTS: "2"
+  RETRY_BASE_DELAY_MS: "500"
+  
+  # Kubernetes batch job configuration
+  KUBERNETES_BATCH_ENABLED: "true"
+  KUBERNETES_BATCH_NAMESPACE: "globeco"
+  KUBERNETES_BATCH_CLI_IMAGE: "kasbench/globeco-portfolio-accounting-service-cli:latest"
+  KUBERNETES_BATCH_JOB_TIMEOUT_SECONDS: "1800"
+  KUBERNETES_BATCH_JOB_RETRY_LIMIT: "2"
+  KUBERNETES_BATCH_SERVICE_ACCOUNT_NAME: "globeco-allocation-service"
+  KUBERNETES_BATCH_NFS_PVC_NAME: "globeco-efs-pvc"
+  
+  # OpenTelemetry configuration (GlobeCo standards)
+  OBSERVABILITY_OTEL_ENABLED: "true"
+  # OBSERVABILITY_OTEL_ENDPOINT: Set dynamically via Downward API in deployment
+  OBSERVABILITY_OTEL_SERVICE_NAME: "globeco-allocation-service"
+  OBSERVABILITY_OTEL_SERVICE_VERSION: "1.0.0"
+  OBSERVABILITY_OTEL_SERVICE_NAMESPACE: "globeco"
+  
+  # Standard OTEL environment variables (for compatibility)
+  # OTEL_EXPORTER_OTLP_ENDPOINT: Set dynamically via Downward API in deployment
+  OTEL_SERVICE_NAME: "globeco-allocation-service"
+  OTEL_SERVICE_VERSION: "1.0.0"
+  OTEL_SERVICE_NAMESPACE: "globeco"
+  OTEL_EXPORTER_OTLP_INSECURE: "true"
+  OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+  
+  # Additional OTEL debugging variables
+  OTEL_LOG_LEVEL: "info"
+  OTEL_RESOURCE_ATTRIBUTES: "service.name=globeco-allocation-service,service.version=1.0.0,service.namespace=globeco"
+  
+  # Observability configuration
+  OBSERVABILITY_LOG_FORMAT: "json"
+  OBSERVABILITY_LOG_DEVELOPMENT: "true"
+  OBSERVABILITY_METRICS_ENABLED: "true"
+  OBSERVABILITY_METRICS_PATH: "/metrics"
+  OBSERVABILITY_TRACING_ENABLED: "true"
+  OBSERVABILITY_TRACING_SAMPLING_RATIO: "1.0"
+  OBSERVABILITY_LOG_ENABLE_CALLER: "true"
+  OBSERVABILITY_LOG_ENABLE_STACKTRACE: "true"
+  OBSERVABILITY_LOG_DEVELOPMENT: "false"
+  OBSERVABILITY_LOG_DISABLE_SAMPLING: "false"
+  OBSERVABILITY_LOG_CORRELATION_HEADER: "X-Correlation-ID"
+---
+# Source: globeco/templates/globeco-allocation-service/portfolio-cli-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portfolio-cli-config
+  namespace: globeco
+  labels:
+    app: portfolio-accounting-cli
+    component: config
+data:
+  config.yaml: |
+    # Portfolio Accounting CLI Configuration
+    server:
+      host: "globeco-allocation-service"
+      port: 8089
+      timeout: "30s"
+    
+    processing:
+      batch_size: 1000
+      max_retries: 3
+      retry_delay: "5s"
+    
+    output:
+      format: "csv"
+      compression: false
+      include_headers: true
+    
+    logging:
+      level: "info"
+      format: "json"
+      enable_caller: true
+    
+    # File processing settings
+    files:
+      input_dir: "/data"
+      output_dir: "/data"
+      temp_dir: "/tmp"
+    
+    # Resource limits for processing
+    limits:
+      max_file_size: "100MB"
+      max_records: 100000
+      processing_timeout: "10m"
+---
+# Source: globeco/templates/globeco-observability/jaeger-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jaeger-config
+  namespace: observability
+data:
+  config.yaml: |
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+    
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    
+    processors:
+      batch:
+        timeout: 5s
+        send_batch_size: 1024
+    
+    exporters:
+      elasticsearch:
+        endpoints:
+          - http://elasticsearch:9200
+        index: jaeger-span-2024
+        # username: ""
+        # password: ""
+        mapping:
+          mode: raw
+        tls:
+          insecure: true
+    
+    service:
+      extensions:
+        - health_check
+      pipelines:
+        traces:
+          receivers:
+            - otlp
+          processors:
+            - batch
+          exporters:
+            - elasticsearch
+    
+    # Jaeger Query Service Configuration
+    query:
+      base-path: /
+      grpc:
+        host-port: 0.0.0.0:16685
+      http:
+        host-port: 0.0.0.0:16686
+    
+    storage:
+      type: elasticsearch
+      elasticsearch:
+        servers:
+          - http://elasticsearch:9200
+        # username: ""
+        # password: ""
+        index_prefix: jaeger
+        create_index_templates: true
+---
+# Source: globeco/templates/globeco-observability/otel-collector-cluster-deployment.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-cluster-config
+  namespace: globeco
+data:
+  config.yaml: |
+    receivers:
+      k8s_cluster:
+        auth_type: serviceAccount
+        collection_interval: 30s
+        node_conditions_to_report: [Ready, MemoryPressure, DiskPressure, NetworkUnavailable]
+      k8s_events:
+        auth_type: serviceAccount
+
+      mongodb/order_generation:
+        hosts:
+          - endpoint: globeco-order-generation-service-mongodb.globeco.svc.cluster.local:27017
+        collection_interval: 30s
+        initial_delay: 1s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+        metrics:
+              mongodb.uptime:
+                enabled: true
+              mongodb.commands.rate:
+                enabled: true
+              mongodb.health:
+                enabled: true
+              mongodb.operation.latency.time:
+                enabled: true
+              mongodb.queries.rate:
+                enabled: true
+              mongodb.flushes.rate:
+                enabled: false
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 1024
+        send_batch_max_size: 2048
+
+      memory_limiter:
+        limit_mib: 512
+        spike_limit_mib: 128
+        check_interval: 5s
+
+      k8sattributes:
+        auth_type: "serviceAccount"
+        passthrough: false
+        wait_for_metadata: true
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.deployment.name
+            - k8s.namespace.name
+            - k8s.node.name
+            - k8s.pod.start_time
+            - k8s.deployment.name
+            - k8s.daemonset.name
+            - k8s.statefulset.name
+            - k8s.job.name
+            - k8s.container.name
+            - container.image.name
+            - container.id
+            - container.image.tag
+          labels:
+            - tag_name: k8s.pod.label.app
+              key: app
+              from: pod
+            - tag_name: k8s.pod.label.version
+              key: version
+              from: pod
+        
+        # pod_association: # How to associate the data to a pod (order matters)
+        #   - sources: # First try to use the value of the resource attribute k8s.pod.ip
+        #       - from: resource_attribute
+        #         name: k8s.pod.ip
+        #   - sources: # Then try to use the value of the resource attribute k8s.pod.uid
+        #       - from: resource_attribute
+        #         name: k8s.pod.uid
+        #   - sources: # If neither of those work, use the request's connection to get the pod IP.
+        #       - from: connection
+        
+
+      resource/mongodb_order_generation:
+        attributes:
+          - key: instance_name
+            value: globeco-order-generation-service-mongodb
+            action: upsert
+          - key: service_name
+            value: globeco-order-generation-service-mongodb
+            action: upsert
+
+    exporters:
+      prometheus:
+        endpoint: "0.0.0.0:9464"
+        namespace: ""
+        const_labels:
+          environment: "production"
+          collector: "otel-collector-cluster"
+        metric_expiration: 1440m
+        resource_to_telemetry_conversion:
+          enabled: true
+
+      debug: {}
+    
+    service:
+      pipelines:
+        metrics:
+          receivers: [k8s_cluster]
+          processors: [batch]
+          exporters: [prometheus, debug]
+        
+        metrics/mongodb_order_generation:
+          receivers: [mongodb/order_generation]
+          processors: [memory_limiter, k8sattributes, resource/mongodb_order_generation, batch]
+          exporters: [prometheus]
+
+        # logs:
+        #   receivers: [k8s_events]
+        #   processors: [batch]
+        #   exporters: [prometheus]
+---
+# Source: globeco/templates/globeco-order-generation-service/redis.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: globeco
+data:
+  redis.conf: |
+    # Basic Redis configuration
+    bind 0.0.0.0
+    port 6379
+
+    # Disable RDB snapshots to avoid disk write issues
+    save ""
+    stop-writes-on-bgsave-error no
+
+    # Use AOF for persistence instead (more reliable for K8s)
+    appendonly yes
+    appendfsync everysec
+    appendfilename "appendonly.aof"
+
+    # Set data directory
+    dir /data
+
+    # Logging
+    loglevel notice
+
+    # Memory management
+    maxmemory-policy allkeys-lru
+
+    # Disable protected mode for K8s
+    protected-mode no
+---
+# Source: globeco/templates/globeco-portfolio-accounting-service/redis.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config-portfolio-accounting
+  namespace: globeco
+data:
+  redis.conf: |
+    # Basic Redis configuration
+    bind 0.0.0.0
+    port 6379
+
+    # Disable RDB snapshots to avoid disk write issues
+    save ""
+    stop-writes-on-bgsave-error no
+
+    # Use AOF for persistence (optimized for local storage)
+    appendonly yes
+    appendfsync everysec
+    appendfilename "appendonly.aof"
+    
+    # AOF rewrite optimization for local storage
+    auto-aof-rewrite-percentage 100
+    auto-aof-rewrite-min-size 64mb
+    aof-rewrite-incremental-fsync yes
+
+    # Set data directory
+    dir /data
+
+    # Logging
+    loglevel notice
+
+    # Memory management
+    maxmemory-policy allkeys-lru
+
+    # Disable protected mode for K8s
+    protected-mode no
+    
+    # Local storage optimizations
+    # Reduce fsync frequency for better performance on local disks
+    no-appendfsync-on-rewrite yes
+    
+    # TCP keepalive for better connection management
+    tcp-keepalive 300
+---
+# Source: globeco/templates/globeco-allocation-service/efs-static-sc.yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-static-sc
+provisioner: efs.csi.aws.com
+# Reclaim policy can be Retain or Delete. 
+# For static EFS, Retain ensures Kubernetes won't touch the underlying EFS data.
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+---
+# Source: globeco/templates/other/ebs-gp3-sc.yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-gp3-old-ignore
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  fsType: ext4
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+---
+# Source: globeco/templates/globeco-allocation-service/pv-data.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: release-name-efs-pv
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain 
+  storageClassName: efs-static-sc
+  csi:
+    driver: efs.csi.aws.com
+    volumeHandle: "none"
+---
+# Source: globeco/templates/globeco-allocation-service/postgresql-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: allocation-service-postgresql-pvc
+  namespace: globeco
+  labels:
+    app: globeco-allocation-service-postgresql
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-gp3
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: globeco/templates/globeco-allocation-service/pvc-data.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: release-name-efs-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: efs-static-sc
+  volumeName: release-name-efs-pv 
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Source: globeco/templates/globeco-fix-engine/postgresql-persistent-volume-claim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fix-engine-postgres-pvc
+  namespace: globeco
+  labels:
+    app: globeco-fix-engine-postgresql
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-gp3
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: globeco/templates/globeco-observability/elasticsearch-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elasticsearch-pvc
+  namespace: elasticsearch
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: ebs-gp3
+---
+# Source: globeco/templates/globeco-order-generation-service/mongodb-persistent-volume-claim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: order-generation-service-mongodb-pvc
+  namespace: globeco
+  labels:
+    app: order-generation-service-mongodb
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-gp3
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: globeco/templates/globeco-order-generation-service/redis-persistent-volume-claim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: order-generation-service-redis-pvc
+  namespace: globeco
+  labels:
+    app: order-generation-service-redis
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-gp3
+  resources:
+    requests:
+      storage: 2Gi
+---
+# Source: globeco/templates/globeco-order-service/postgresql-persistent-volume-claim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: order-service-postgres-pvc
+  namespace: globeco
+  labels:
+    app: order-service-postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-gp3
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: globeco/templates/globeco-portfolio-accounting-service/postgresql-persistent-volume-claim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: portfolio-accounting-service-postgres-pvc
+  namespace: globeco
+  labels:
+    app: portfolio-accounting-service-postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-gp3
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: globeco/templates/globeco-portfolio-accounting-service/redis-persistent-volume-claim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: portfolio-accounting-service-redis-pvc
+  namespace: globeco
+  labels:
+    app: portfolio-accounting-service-redis
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-gp3
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: globeco/templates/globeco-portfolio-service/globeco-portfolio-service-mongodb-ebs.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: portfolio-service-mongodb-pvc
+  namespace: globeco
+  labels:
+    app: globeco-portfolio-service-mongodb
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: ebs-gp3
+---
+# Source: globeco/templates/globeco-pricing-service/postgresql-persistent-volume-claim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pricing-service-postgres-pvc
+  namespace: globeco
+  labels:
+    app: pricing-service-postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-gp3
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: globeco/templates/globeco-security-service/mongodb-persistent-volume-claim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: security-service-mongodb-pvc
+  namespace: globeco
+  labels:
+    app: security-service-mongodb
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-gp3
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: globeco/templates/globeco-trade-service/postgresql-persistent-volume-claim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: trade-service-postgres-pvc
+  namespace: globeco
+  labels:
+    app: trade-service-postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-gp3
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: globeco/charts/gateway-helm/templates/envoy-gateway-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: release-name-gateway-helm-envoy-gateway-role
+  labels:
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gatewayclasses
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gatewayclasses/status
+  verbs:
+  - update
+- apiGroups:
+  - multicluster.x-k8s.io
+  resources:
+  - serviceimports
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - daemonsets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - gateway.envoyproxy.io
+  resources:
+  - envoyproxies
+  - envoypatchpolicies
+  - clienttrafficpolicies
+  - backendtrafficpolicies
+  - securitypolicies
+  - envoyextensionpolicies
+  - backends
+  - httproutefilters
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - gateway.envoyproxy.io
+  resources:
+  - envoypatchpolicies/status
+  - clienttrafficpolicies/status
+  - backendtrafficpolicies/status
+  - securitypolicies/status
+  - envoyextensionpolicies/status
+  - backends/status
+  verbs:
+  - update
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gateways
+  - listenersets
+  - grpcroutes
+  - httproutes
+  - referencegrants
+  - tcproutes
+  - tlsroutes
+  - udproutes
+  - backendtlspolicies
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gateways/status
+  - listenersets/status
+  - grpcroutes/status
+  - httproutes/status
+  - tcproutes/status
+  - tlsroutes/status
+  - udproutes/status
+  - backendtlspolicies/status
+  verbs:
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/binding
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+# Source: globeco/templates/globeco-observability/metrics_server_deployment.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    k8s-app: metrics-server
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+  name: system:aggregated-metrics-reader
+rules:
+- apiGroups:
+  - metrics.k8s.io
+  resources:
+  - pods
+  - nodes
+  verbs:
+  - get
+  - list
+---
+# Source: globeco/templates/globeco-observability/metrics_server_deployment.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: system:metrics-server
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes/metrics
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes/stats
+  verbs:
+  - get
+---
+# Source: globeco/templates/globeco-observability/otel-collector-cluster-deployment.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: otel-collector-cluster
+rules:
+  # Core resources
+  - apiGroups: [""]
+    resources: 
+      - "pods"
+      - "nodes" 
+      - "namespaces"
+      - "events"
+      - "replicationcontrollers"
+      - "resourcequotas"
+      - "persistentvolumes"
+      - "persistentvolumeclaims"
+      - "services"
+      - "secrets"
+      - "configmaps"
+    verbs: ["get", "list", "watch"]
+  
+  # Apps resources
+  - apiGroups: ["apps"]
+    resources:
+      - "deployments"
+      - "daemonsets" 
+      - "replicasets"
+      - "statefulsets"
+    verbs: ["get", "list", "watch"]
+  
+  # Batch resources  
+  - apiGroups: ["batch"]
+    resources:
+      - "jobs"
+      - "cronjobs"
+    verbs: ["get", "list", "watch"]
+  
+  # Autoscaling resources
+  - apiGroups: ["autoscaling"]
+    resources:
+      - "horizontalpodautoscalers"
+    verbs: ["get", "list", "watch"]
+  
+  # Extensions (for some clusters)
+  - apiGroups: ["extensions"]
+    resources:
+      - "deployments"
+      - "replicasets"
+    verbs: ["get", "list", "watch"]
+---
+# Source: globeco/templates/globeco-observability/otel-collector-daemonset.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: otel-collector-daemonset
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints", "namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets", "deployments", "daemonsets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["extensions"]
+    resources: ["replicasets", "deployments", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+---
+# Source: globeco/charts/gateway-helm/templates/envoy-gateway-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: release-name-gateway-helm-envoy-gateway-rolebinding
+  labels:
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: release-name-gateway-helm-envoy-gateway-role
+subjects:
+- kind: ServiceAccount
+  name: 'envoy-gateway'
+  namespace: globeco
+---
+# Source: globeco/templates/globeco-observability/metrics_server_deployment.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server:system:auth-delegator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: metrics-server
+  namespace: kube-system
+---
+# Source: globeco/templates/globeco-observability/metrics_server_deployment.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: system:metrics-server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:metrics-server
+subjects:
+- kind: ServiceAccount
+  name: metrics-server
+  namespace: kube-system
+---
+# Source: globeco/templates/globeco-observability/otel-collector-cluster-deployment.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-collector-cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: otel-collector-cluster
+subjects:
+  - kind: ServiceAccount
+    name: otel-collector-cluster
+    namespace: globeco
+---
+# Source: globeco/templates/globeco-observability/otel-collector-daemonset.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-collector-daemonset
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: otel-collector-daemonset
+subjects:
+  - kind: ServiceAccount
+    name: otel-collector-daemonset
+    namespace: globeco
+---
+# Source: globeco/charts/gateway-helm/templates/infra-manager-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-gateway-helm-infra-manager
+  namespace: globeco
+  labels:
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  - services
+  - configmaps
+  verbs:
+  - create
+  - get
+  - list
+  - delete
+  - deletecollection
+  - patch
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - daemonsets
+  verbs:
+  - create
+  - get
+  - list
+  - delete
+  - deletecollection
+  - patch
+  - watch
+- apiGroups:
+  - autoscaling
+  - policy
+  resources:
+  - horizontalpodautoscalers
+  - poddisruptionbudgets
+  verbs:
+  - create
+  - get
+  - list
+  - delete
+  - deletecollection
+  - patch
+  - watch
+- apiGroups:
+  - certificates.k8s.io
+  resources:
+  - clustertrustbundles
+  verbs:
+  - list
+  - get
+  - watch
+---
+# Source: globeco/charts/gateway-helm/templates/leader-election-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-gateway-helm-leader-election-role
+  namespace: globeco
+  labels:
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+# Source: globeco/templates/globeco-allocation-service/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: allocation-service-role
+  namespace: globeco
+  labels:
+    app: globeco-allocation-service
+rules:
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["create", "get", "list", "watch", "delete"]
+---
+# Source: globeco/charts/gateway-helm/templates/infra-manager-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-gateway-helm-infra-manager
+  namespace: globeco
+  labels:
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: 'release-name-gateway-helm-infra-manager'
+subjects:
+- kind: ServiceAccount
+  name: 'envoy-gateway'
+  namespace: globeco
+---
+# Source: globeco/charts/gateway-helm/templates/leader-election-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-gateway-helm-leader-election-rolebinding
+  namespace: globeco
+  labels:
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: 'release-name-gateway-helm-leader-election-role'
+subjects:
+- kind: ServiceAccount
+  name: 'envoy-gateway'
+  namespace: globeco
+---
+# Source: globeco/templates/globeco-allocation-service/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: allocation-service-rolebinding
+  namespace: globeco
+  labels:
+    app: globeco-allocation-service
+subjects:
+- kind: ServiceAccount
+  name: globeco-allocation-service
+  namespace: globeco
+roleRef:
+  kind: Role
+  name: allocation-service-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: globeco/templates/globeco-observability/metrics_server_deployment.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server-auth-reader
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+- kind: ServiceAccount
+  name: metrics-server
+  namespace: kube-system
+---
+# Source: globeco/charts/gateway-helm/templates/envoy-gateway-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: envoy-gateway
+  namespace: globeco
+  labels:
+    control-plane: envoy-gateway
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  selector:
+    control-plane: envoy-gateway
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+  ports:
+  - name: grpc
+    port: 18000
+    targetPort: 18000
+  - name: ratelimit
+    port: 18001
+    targetPort: 18001
+  - name: wasm
+    port: 18002
+    targetPort: 18002
+  - name: metrics
+    port: 19001
+    targetPort: 19001
+  - name: webhook
+    port: 9443
+    targetPort: 9443
+---
+# Source: globeco/templates/globeco-allocation-service/postgresql.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-allocation-service-postgresql-headless
+  namespace: globeco
+spec:
+  clusterIP: None
+  selector:
+    app: globeco-allocation-service-postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+---
+# Source: globeco/templates/globeco-allocation-service/postgresql.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-allocation-service-postgresql
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-allocation-service-postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-allocation-service/service-aws.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-allocation-service
+  namespace: globeco
+  labels:
+    app: globeco-allocation-service
+    environment: aws
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8089
+    targetPort: 8089
+    protocol: TCP
+    name: http
+  selector:
+    app: globeco-allocation-service
+---
+# Source: globeco/templates/globeco-confirmation-service/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-confirmation-service
+  namespace: globeco
+  labels:
+    app: globeco-confirmation-service
+  # annotations:
+  #   prometheus.io/scrape: "true"
+  #   prometheus.io/port: "8086"
+  #   prometheus.io/path: "/metrics"
+spec:
+  selector:
+    app: globeco-confirmation-service
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8086
+      targetPort: 8086
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-debug-tools/globeco-debug-tools-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-debug-tools
+  namespace: globeco
+  labels:
+    app: globeco-debug-tools
+spec:
+  selector:
+    app: globeco-debug-tools
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-execution-service/postgresql-deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-execution-service-postgresql-headless
+  namespace: globeco
+spec:
+  clusterIP: None
+  selector:
+    app: globeco-execution-service-postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+---
+# Source: globeco/templates/globeco-execution-service/postgresql-deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-execution-service-postgresql
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-execution-service-postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-execution-service/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-execution-service
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-execution-service
+  ports:
+    - protocol: TCP
+      port: 8084
+      targetPort: 8084
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-fix-engine/postgresql-deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-fix-engine-postgresql-headless
+  namespace: globeco
+spec:
+  clusterIP: None
+  selector:
+    app: globeco-fix-engine-postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+---
+# Source: globeco/templates/globeco-fix-engine/postgresql-deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-fix-engine-postgresql
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-fix-engine-postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-fix-engine/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-fix-engine-service
+  namespace: globeco
+  labels:
+    app: globeco-fix-engine-service
+spec:
+  selector:
+    app: globeco-fix-engine-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8085
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-observability/elasticsearch-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: elasticsearch
+spec:
+  selector:
+    app: elasticsearch
+  ports:
+    - protocol: TCP
+      port: 9200
+      targetPort: 9200
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-observability/jaeger-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: jaeger
+  name: jaeger
+  namespace: observability
+spec:
+  ports:
+  - name: http-query
+    port: 16686
+    protocol: TCP
+    targetPort: 16686
+  - name: grpc
+    port: 14250
+    protocol: TCP
+    targetPort: 14250
+  - name: collector
+    port: 14268
+    protocol: TCP
+    targetPort: 14268
+  - name: otlp-grpc
+    port: 4317
+    targetPort: 4317
+  - name: otlp-http
+    port: 4318
+    targetPort: 4318
+  selector:
+    app: jaeger
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-observability/metrics_server_deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server
+  namespace: kube-system
+spec:
+  ports:
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: https
+  selector:
+    k8s-app: metrics-server
+---
+# Source: globeco/templates/globeco-observability/otel-collector-cluster-deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector-cluster
+  namespace: globeco
+  labels:
+    app: otel-collector
+  # annotations:
+  #   prometheus.io/scrape: "true"
+  #   prometheus.io/port: "9464"
+  #   prometheus.io/path: "/metrics"
+spec:
+  ports:
+    - name: prom-metrics
+      port: 9464
+      targetPort: prom-metrics
+  selector:
+    app: otel-collector
+---
+# Source: globeco/templates/globeco-order-generation-service/deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-order-generation-service
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-order-generation-service
+  ports:
+    - protocol: TCP
+      port: 8088
+      targetPort: 8088
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-order-generation-service/mongodb-deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-order-generation-service-mongodb
+  namespace: globeco
+  labels:
+    app: globeco-order-generation-service-mongodb
+spec:
+  ports:
+    - port: 27017
+      targetPort: 27017
+  clusterIP: None  # Headless service for StatefulSet
+  selector:
+    app: globeco-order-generation-service-mongodb
+---
+# Source: globeco/templates/globeco-order-generation-service/redis.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-order-generation-service-redis
+  namespace: globeco
+  labels:
+    app: globeco-order-generation-service-redis
+spec:
+  ports:
+    - port: 6379
+      targetPort: 6379
+  clusterIP: None  # Headless service for StatefulSet
+  selector:
+    app: globeco-order-generation-service-redis
+---
+# Source: globeco/templates/globeco-order-service/postgresql-deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-order-service-postgresql-headless
+  namespace: globeco
+spec:
+  clusterIP: None
+  selector:
+    app: globeco-order-service-postgresql
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# Source: globeco/templates/globeco-order-service/postgresql-deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-order-service-postgresql
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-order-service-postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-order-service/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-order-service
+  namespace: globeco
+  labels:
+    app: globeco-order-service
+spec:
+  selector:
+    app: globeco-order-service
+  ports:
+    - protocol: TCP
+      port: 8081
+      targetPort: 8081
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-portfolio-accounting-service/portfolio-accounting-service-postgresql.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-portfolio-accounting-service-postgresql-headless
+  namespace: globeco
+spec:
+  clusterIP: None
+  selector:
+    app: globeco-portfolio-accounting-service-postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+---
+# Source: globeco/templates/globeco-portfolio-accounting-service/portfolio-accounting-service-postgresql.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-portfolio-accounting-service-postgresql
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-portfolio-accounting-service-postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-portfolio-accounting-service/portfolio-accounting-service-server.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-portfolio-accounting-service
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-portfolio-accounting-service
+  ports:
+    - protocol: TCP
+      port: 8087
+      targetPort: 8087
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-portfolio-accounting-service/redis.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-portfolio-accounting-service-redis
+  namespace: globeco
+  labels:
+    app: globeco-portfolio-accounting-service-redis
+spec:
+  ports:
+    - port: 6379
+      targetPort: 6379
+  clusterIP: None  # Headless service for StatefulSet
+  selector:
+    app: globeco-portfolio-accounting-service-redis
+---
+# Source: globeco/templates/globeco-portfolio-management-portal/nodeport.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-portfolio-management-portal-nodeport
+  namespace: globeco
+  labels:
+    app: globeco-portfolio-management-portal
+spec:
+  type: NodePort
+  selector:
+    app: globeco-portfolio-management-portal
+  ports:
+    - port: 32080      # Internal cluster port
+      targetPort: 3000 # Port your container app listens on
+      nodePort: 32080  # Exact external port (Must be 30000-32767)
+---
+# Source: globeco/templates/globeco-portfolio-management-portal/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-portfolio-management-portal
+  namespace: globeco
+  labels:
+    app: globeco-portfolio-management-portal
+spec:
+  type: ClusterIP
+  selector:
+    app: globeco-portfolio-management-portal
+  ports:
+    - name: http
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
+---
+# Source: globeco/templates/globeco-portfolio-service/globeco-portfolio-service-mongodb-ebs.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-portfolio-service-mongodb
+  namespace: globeco
+  labels:
+    app: globeco-portfolio-service-mongodb
+spec:
+  ports:
+    - port: 27017
+      targetPort: 27017
+  clusterIP: None  # Headless service for StatefulSet
+  selector:
+    app: globeco-portfolio-service-mongodb
+---
+# Source: globeco/templates/globeco-portfolio-service/globeco-portfolio-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-portfolio-service
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-portfolio-service
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-pricing-service/globeco-postgresql-deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-postgresql-headless
+  namespace: globeco
+spec:
+  clusterIP: None
+  selector:
+    app: globeco-pricing-service-postgresql
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# Source: globeco/templates/globeco-pricing-service/globeco-postgresql-deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-pricing-service-postgresql
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-pricing-service-postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-pricing-service/globeco-pricing-service-deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-pricing-service
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-pricing-service
+  ports:
+    - protocol: TCP
+      port: 8083
+      targetPort: 8083
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-security-service/globeco-security-service-mongodb.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-security-service-mongodb
+  namespace: globeco
+  labels:
+    app: globeco-security-service-mongodb
+spec:
+  ports:
+    - port: 27017
+      targetPort: 27017
+  clusterIP: None  # Headless service for StatefulSet
+  selector:
+    app: globeco-security-service-mongodb
+---
+# Source: globeco/templates/globeco-security-service/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-security-service
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-security-service
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-trade-service/deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-trade-service
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-trade-service
+  ports:
+    - protocol: TCP
+      port: 8082
+      targetPort: 8082
+  type: ClusterIP
+---
+# Source: globeco/templates/globeco-trade-service/postgresql-deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-trade-service-postgresql
+  namespace: globeco
+spec:
+  selector:
+    app: globeco-trade-service-postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+# Source: globeco/charts/gateway-helm/templates/envoy-gateway-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envoy-gateway
+  namespace: globeco
+  labels:
+    control-plane: envoy-gateway
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: envoy-gateway
+      app.kubernetes.io/name: gateway-helm
+      app.kubernetes.io/instance: release-name
+  template:
+    metadata:
+      annotations:
+        prometheus.io/port: "19001"
+        prometheus.io/scrape: "true"
+      labels:
+        control-plane: envoy-gateway
+        app.kubernetes.io/name: gateway-helm
+        app.kubernetes.io/instance: release-name
+    spec:
+      containers:
+      - args:
+        - server
+        - --config-path=/config/envoy-gateway.yaml
+        env:
+        - name: ENVOY_GATEWAY_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: cluster.local
+        image: docker.io/envoyproxy/gateway:v1.8.2
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: envoy-gateway
+        ports:
+        - containerPort: 18000
+          name: grpc
+        - containerPort: 18001
+          name: ratelimit
+        - containerPort: 18002
+          name: wasm
+        - containerPort: 19001
+          name: metrics
+        - name: webhook
+          containerPort: 9443
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            memory: 1024Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          runAsGroup: 65532
+          runAsNonRoot: true
+          runAsUser: 65532
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /config
+          name: envoy-gateway-config
+          readOnly: true
+        - mountPath: /certs
+          name: certs
+          readOnly: true
+      imagePullSecrets: []
+      serviceAccountName: envoy-gateway
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: envoy-gateway-config
+        name: envoy-gateway-config
+      - name: certs
+        secret:
+          secretName: envoy-gateway
+---
+# Source: globeco/templates/globeco-allocation-service/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-allocation-service
+  namespace: globeco
+  labels:
+    app: globeco-allocation-service
+    environment: aws
+
+spec:
+  
+  replicas: 2
+
+  # A newly-ready pod must remain ready for 10 seconds before
+  # the Deployment considers it available.
+  minReadySeconds: 10
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+
+  selector:
+    matchLabels:
+      app: globeco-allocation-service
+
+  template:
+    metadata:
+      labels:
+        app: globeco-allocation-service
+
+    spec:
+      serviceAccountName: globeco-allocation-service
+
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:18.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for PostgreSQL to become available..."
+              until pg_isready -h globeco-allocation-service-postgresql -p 5432; do
+                echo "PostgreSQL is unavailable - sleeping"
+                sleep 2
+              done
+              echo "PostgreSQL is up - continuing"
+
+      containers:
+        - name: globeco-allocation-service
+          image: kasbench/globeco-allocation-service-server:1.0.3
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - containerPort: 8089
+              name: http
+
+          envFrom:
+            - configMapRef:
+                name: allocation-service-config-aws
+
+          env:
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+
+            - name: MY_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+
+            - name: OBSERVABILITY_OTEL_ENDPOINT
+              value: "$(NODE_IP):4317"
+
+            - name: OTEL_SERVICE_NAME
+              value: "globeco-allocation-service"
+
+            - name: OTEL_SERVICE_NAMESPACE
+              value: "globeco"
+
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: >-
+                k8s.pod.ip=$(MY_POD_IP),
+                k8s.pod.name=$(MY_POD_NAME),
+                k8s.node.name=$(MY_NODE_NAME),
+                k8s.namespace.name=$(MY_NAMESPACE)
+
+          volumeMounts:
+            - name: data
+              mountPath: /data
+
+            - name: tmp
+              mountPath: /tmp
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 6
+
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 6
+
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 12
+
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: NotRequired
+
+            - resourceName: memory
+              restartPolicy: RestartContainer
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "200Mi"
+            limits:
+              memory: "6000Mi"
+
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: release-name-efs-pvc
+
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+---
+# Source: globeco/templates/globeco-confirmation-service/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-confirmation-service
+  namespace: globeco
+  labels:
+    app: globeco-confirmation-service
+spec:
+  
+  replicas: 2
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+  selector:
+    matchLabels:
+      app: globeco-confirmation-service
+  template:
+    metadata:
+      labels:
+        app: globeco-confirmation-service
+      annotations:
+        prometheus.io/scrape: "false"
+        prometheus.io/port: "8086"
+        prometheus.io/path: "/metrics"
+    spec:
+      terminationGracePeriodSeconds: 60
+      initContainers:
+        - name: wait-for-kafka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z globeco-execution-service-kafka 9092; do echo "Waiting for Kafka..."; sleep 2; done']
+      containers:
+        - name: globeco-confirmation-service
+          image: kasbench/globeco-confirmation-service:1.0.6
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8086
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: "globeco-confirmation-service"
+            - name: OTEL_SERVICE_VERSION
+              value: "1.0.0"
+            - name: OTEL_SERVICE_NAMESPACE
+              value: "globeco"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "otel-collector-daemonset-collector.globeco.svc.cluster.local:4317"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "grpc"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.name=globeco-confirmation-service,service.version=1.0.0,service.namespace=globeco"
+            - name: TRACING_ENABLED
+              value: "true"
+            - name: METRICS_ENABLED
+              value: "true"
+            # Artificial per-message processing delay to slow the processing loop
+            # for autoscaling testing. Go duration string (e.g. "50ms", "1s").
+            - name: PROCESSING_SLEEP
+              value: "50ms"
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: NotRequired
+            - resourceName: memory
+              restartPolicy: RestartContainer
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "200Mi"
+            limits:
+              memory: "6000Mi"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8086
+            # initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 30
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8086
+            # initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 30
+            failureThreshold: 6
+          startupProbe:
+            httpGet:
+              path: /health/ready
+              port: 8086
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+---
+# Source: globeco/templates/globeco-debug-tools/globeco-debug-tools-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-debug-tools
+  namespace: globeco
+  labels:
+    app: globeco-debug-tools
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-debug-tools
+  template:
+    metadata:
+      labels:
+        app: globeco-debug-tools
+    spec:
+      containers:
+      - name: globeco-debug-tools
+        image: kasbench/globeco-debug-tools:latest
+        imagePullPolicy: Always
+        command: ["/bin/bash"]
+        tty: true
+        stdin: true
+---
+# Source: globeco/templates/globeco-execution-service/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-execution-service
+  namespace: globeco
+spec:
+  
+  replicas: 2
+  # A newly-ready pod must remain ready for 10 seconds before
+  # the Deployment considers it available.
+  minReadySeconds: 10
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+
+  selector:
+    matchLabels:
+      app: globeco-execution-service
+  template:
+    metadata:
+      labels:
+        app: globeco-execution-service
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:18.0
+          command: ['sh', '-c', 'until pg_isready -h globeco-execution-service-postgresql -p 5432 -U postgres; do echo "Waiting for PostgreSQL..."; sleep 2; done']
+        - name: wait-for-kafka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z globeco-execution-service-kafka 9092; do echo "Waiting for Kafka..."; sleep 2; done']
+      containers:
+        - name: globeco-execution-service
+          image: kasbench/globeco-execution-service:1.0.7
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8084
+          env:
+            # Inject the node IP from the Downward API
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            # Point OTEL exporter to the local collector on the same node
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://$(NODE_IP):4317"
+            # Override OTLP metrics export URL to use host networking
+            - name: MANAGEMENT_OTLP_METRICS_EXPORT_URL
+              value: "http://$(NODE_IP):4318/v1/metrics"
+            # Override OTLP tracing endpoint to use host networking
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://$(NODE_IP):4318/v1/traces"
+            - name: DEBUG_LEVEL
+              value: "INFO"
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: NotRequired
+            - resourceName: memory
+              restartPolicy: RestartContainer
+          resources:
+            requests:
+              cpu: "984m"
+              memory: "1000Mi"
+            limits:
+              memory: "6000Mi"
+
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8084
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8084
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness  
+              port: 8084
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 20
+      restartPolicy: Always
+---
+# Source: globeco/templates/globeco-fix-engine/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-fix-engine
+  namespace: globeco
+  labels:
+    app: globeco-fix-engine
+spec:
+  
+  replicas: 2
+
+  # A newly-ready pod must remain ready for 10 seconds before
+  # the Deployment considers it available.
+  minReadySeconds: 10
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+
+  selector:
+    matchLabels:
+      app: globeco-fix-engine
+  template:
+    metadata:
+      labels:
+        app: globeco-fix-engine
+    spec:
+      initContainers:
+        - name: wait-for-kafka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z globeco-execution-service-kafka 9092; do echo "Waiting for Kafka..."; sleep 2; done']
+        - name: wait-for-postgres
+          image: postgres:18.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until pg_isready -h globeco-fix-engine-postgresql -p 5432 -U postgres; do
+                echo "Waiting for PostgreSQL to be ready..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready."
+        - name: kafka-stabilization-delay
+          image: busybox:1.36
+          command: ['sh', '-c', 'echo "Kafka is reachable. Waiting 5s for stabilization..."; sleep 5; echo "Stabilization delay complete."']
+      containers:
+        - name: globeco-fix-engine
+          image: kasbench/globeco-fix-engine:1.0.13
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8085
+          env:
+            # Inject the node and pod metadata from the Downward API
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: MY_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            # Inject the node IP from the Downward API
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+
+            # Point OTEL exporter to the local collector on the same node
+            
+            - name: OTEL_METRICENDPOINT
+              value: "$(NODE_IP):4317"
+
+            - name: OTEL_TRACEENDPOINT
+              value: "$(NODE_IP):4317"
+
+            # Define standard service identity attributes
+            - name: OTEL_SERVICE_NAME
+              value: "globeco-fix-engine"  # Fixed to match actual service name
+            - name: OTEL_SERVICE_NAMESPACE
+              value: "globeco"
+            
+            # Log level configuration
+            - name: LOG_LEVEL
+              value: "info"
+
+            # Artificial throttle on Kafka order intake to induce load for
+            # autoscaling benchmarks (Go duration string, e.g. "50ms").
+            - name: ORDER_INTAKE_SLEEP
+              value: "50ms"
+            
+            # Inject Kubernetes metadata as resource attributes for k8sattributes processor
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: >-
+                k8s.pod.ip=$(MY_POD_IP),
+                k8s.pod.name=$(MY_POD_NAME),
+                k8s.node.name=$(MY_NODE_NAME),
+                k8s.namespace.name=$(MY_NAMESPACE)
+
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: NotRequired
+            - resourceName: memory
+              restartPolicy: RestartContainer
+          resources:
+            requests:
+              cpu: "220m"
+              memory: "200Mi"
+            limits:
+              memory: "6000Mi"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8085
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8085
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 10
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8085
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+---
+# Source: globeco/templates/globeco-observability/elasticsearch-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  namespace: elasticsearch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+      - name: elasticsearch
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+        ports:
+        - containerPort: 9200
+        - containerPort: 9300
+        env:
+        - name: discovery.type
+          value: single-node
+        - name: ES_JAVA_OPTS
+          value: "-Xms1g -Xmx1g"
+        volumeMounts:
+        - name: elasticsearch-data
+          mountPath: /usr/share/elasticsearch/data
+      volumes:
+      - name: elasticsearch-data
+        persistentVolumeClaim:
+          claimName: elasticsearch-pvc
+---
+# Source: globeco/templates/globeco-observability/jaeger-v2-elasticsearch.yaml
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: jaeger
+#   namespace: observability
+#   labels:
+#     app: jaeger
+# spec:
+#   ports:
+#     - name: http-query
+#       port: 16686
+#       targetPort: 16686
+#     - name: grpc
+#       port: 14250
+#       targetPort: 14250
+#     - name: collector
+#       port: 14268
+#       targetPort: 14268
+#   selector:
+#     app: jaeger
+# ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+  namespace: observability
+  labels:
+    app: jaeger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger
+  template:
+    metadata:
+      labels:
+        app: jaeger
+    spec:
+      containers:
+        - name: jaeger
+          image: jaegertracing/jaeger:2.8.0
+          ports:
+            - containerPort: 16686 # UI
+            - containerPort: 14250 # gRPC
+            - containerPort: 14268 # Collector HTTP
+          volumeMounts:
+            - name: jaeger-config
+              mountPath: /etc/jaeger
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+      volumes:
+        - name: jaeger-config
+          configMap:
+            name: jaeger-config
+---
+# Source: globeco/templates/globeco-observability/metrics_server_deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: metrics-server
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        k8s-app: metrics-server
+    spec:
+      containers:
+      - args:
+        # Standard metrics server arguments
+        - --cert-dir=/tmp
+        - --secure-port=4443
+        - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+        - --kubelet-use-node-status-port
+        - --metric-resolution=15s
+        # LOCAL/BARE-METAL INSECURE ARGUMENTS
+        - --kubelet-insecure-tls
+        - --requestheader-client-ca-file=/etc/ca-certs/requestheader-client-ca-file
+        - --requestheader-username-headers=X-Remote-User
+        - --requestheader-group-headers=X-Remote-Group
+        - --requestheader-extra-headers-prefix=X-Remote-Extra-
+        image: registry.k8s.io/metrics-server/metrics-server:v0.8.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /livez
+            port: https
+            scheme: HTTPS
+          periodSeconds: 10
+        name: metrics-server
+        ports:
+        - containerPort: 4443
+          name: https
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: https
+            scheme: HTTPS
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp-dir
+        - mountPath: /etc/ca-certs
+          name: ca-certs
+          readOnly: true
+      hostNetwork: false
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: system-cluster-critical
+      serviceAccountName: metrics-server
+      volumes:
+      - emptyDir: {}
+        name: tmp-dir
+      - configMap:
+          name: extension-apiserver-authentication
+          optional: true
+        name: ca-certs
+---
+# Source: globeco/templates/globeco-observability/otel-collector-cluster-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: globeco
+  labels:
+    app: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9464"
+        prometheus.io/path: "/metrics"
+        prometheus.io/scheme: "http"
+    spec:
+      serviceAccountName: otel-collector-cluster
+      containers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:latest
+          args: ["--config=/etc/otel-collector/config.yaml"]
+          ports:
+            - containerPort: 9464 # Prometheus exporter
+              name: prom-metrics
+            - containerPort: 13133 # health check
+              name: health
+          volumeMounts:
+            - name: otel-collector-config
+              mountPath: /etc/otel-collector
+      volumes:
+        - name: otel-collector-config
+          configMap:
+            name: otel-collector-cluster-config
+---
+# Source: globeco/templates/globeco-order-generation-service/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-order-generation-service
+  namespace: globeco
+  labels:
+    app: globeco-order-generation-service
+spec:
+  
+  replicas: 2
+
+  # A newly-ready pod must remain ready for 10 seconds before
+  # the Deployment considers it available.
+  minReadySeconds: 10
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+
+  selector:
+    matchLabels:
+      app: globeco-order-generation-service
+  template:
+    metadata:
+      labels:
+        app: globeco-order-generation-service
+    spec:
+      initContainers:
+        - name: wait-for-mongodb
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for MongoDB at globeco-order-generation-service-mongodb:27017..."
+              until nc -z globeco-order-generation-service-mongodb 27017; do
+                echo "MongoDB not ready, sleeping 2s..."
+                sleep 2
+              done
+              echo "MongoDB is ready."
+        - name: wait-for-redis
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Redis at globeco-order-generation-service-redis:6379..."
+              until nc -z globeco-order-generation-service-redis 6379; do
+                echo "Redis not ready, sleeping 2s..."
+                sleep 2
+              done
+              echo "Redis is ready."
+      containers:
+        - name: globeco-order-generation-service
+          image: kasbench/globeco-order-generation-service:1.0.6
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8088
+          env:
+            - name: MONGODB_URL
+              value: "mongodb://globeco-order-generation-service-mongodb"
+            - name: DATABASE_NAME
+              value: "prod"
+            - name: SECRET_KEY
+              value: "globeco-order-generation-service-secret-key"
+            - name: OTEL_METRICS_LOGGING_ENABLED
+              value: "false"
+            - name: LOG_LEVEL
+              value: "INFO"
+            # OpenTelemetry Configuration using node-local collector
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: OTEL_COLLECTOR_GRPC_ENDPOINT
+              value: "$(NODE_IP):4317"
+            - name: OTEL_COLLECTOR_HTTP_ENDPOINT
+              value: "http://$(NODE_IP):4318"
+            - name: OTEL_INSECURE
+              value: "true"
+            # Inject the node and pod metadata from the Downward API
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: MY_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+
+
+            # Define standard service identity attributes
+            - name: OTEL_SERVICE_NAME
+              value: "globeco-order-generation-service"
+            - name: OTEL_SERVICE_NAMESPACE
+              value: "globeco"
+
+            # Inject Kubernetes metadata as resource attributes for k8sattributes processor
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: >-
+                k8s.pod.ip=$(MY_POD_IP),
+                k8s.pod.name=$(MY_POD_NAME),
+                k8s.node.name=$(MY_NODE_NAME),
+                k8s.namespace.name=$(MY_NAMESPACE)
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: NotRequired
+            - resourceName: memory
+              restartPolicy: RestartContainer
+          resources:
+            requests:
+              cpu: "468m"
+              memory: "800Mi"
+            limits:
+              memory: "6000Mi"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8088
+            # initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8088
+            # initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 6
+          startupProbe:
+            httpGet:
+              path: /health/ready
+              port: 8088
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 24
+---
+# Source: globeco/templates/globeco-order-service/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-order-service
+  namespace: globeco
+  labels:
+    app: globeco-order-service
+spec:
+  
+  replicas: 2
+
+  # A newly-ready pod must remain ready for 10 seconds before
+  # the Deployment considers it available.
+  minReadySeconds: 10
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+
+  selector:
+    matchLabels:
+      app: globeco-order-service
+  template:
+    metadata:
+      labels:
+        app: globeco-order-service
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:18.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until pg_isready -h globeco-order-service-postgresql -p 5432 -U postgres; do
+                echo "Waiting for PostgreSQL to be ready..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready."
+      containers:
+        - name: globeco-order-service
+          image: kasbench/globeco-order-service:1.0.4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://globeco-order-service-postgresql:5432/postgres"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "postgres"
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: "postgres"
+            - name: METRICS_CUSTOM_ENABLED
+              value: "true"
+            - name: METRICS_CUSTOM_HTTP_ENABLED
+              value: "true"
+            - name: METRICS_CUSTOM_HTTP_REQUEST_ENABLED
+              value: "true"
+            - name: METRICS_CUSTOM_DATABASE_ENABLED
+              value: "true"
+            - name: SECURITY_SERVICE_URL
+              value: "http://globeco-security-service:8000"
+            - name: PORTFOLIO_SERVICE_URL
+              value: "http://globeco-portfolio-service:8000"
+            - name: EXTERNAL_SERVICES_SECURITY_URL
+              value: "http://globeco-security-service:8000"
+            - name: EXTERNAL_SERVICES_PORTFOLIO_URL
+              value: "http://globeco-portfolio-service:8000"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: LOGGING_LEVEL_ROOT
+              value: "INFO"
+            - name: LOGGING_LEVEL_ORG_KASBENCH_GLOBECO_ORDER_SERVICE
+              value: "INFO"
+            - name: LOGGING_LEVEL_ORG_KASBENCH_GLOBECO_ORDER_SERVICE_SERVICE
+              value: "INFO"
+            - name: LOGGING_LEVEL_ORG_KASBENCH_GLOBECO_ORDER_SERVICE_CONTROLLER
+              value: "INFO"
+            
+            # Inject the node and pod metadata from the Downward API
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: MY_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace  
+
+            # Inject the node IP from the Downward API
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+
+            # Point OTEL exporter to the local collector on the same node
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://$(NODE_IP):4318"
+            # Override OTLP metrics export URL to use host networking
+            - name: MANAGEMENT_OTLP_METRICS_EXPORT_URL
+              value: "http://$(NODE_IP):4318/v1/metrics"
+            # Override OTLP tracing endpoint to use host networking
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://$(NODE_IP):4318/v1/traces"
+
+            # Define standard service identity attributes
+            - name: OTEL_SERVICE_NAME
+              value: "globeco-order-service"  # Changed to match container name
+            - name: OTEL_SERVICE_NAMESPACE
+              value: "globeco"
+            
+            # Inject Kubernetes metadata as resource attributes for k8sattributes processor
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: >-
+                service.name=globeco-order-service,
+                service.namespace=globeco,
+                k8s.pod.ip=$(MY_POD_IP),
+                k8s.pod.name=$(MY_POD_NAME),
+                k8s.node.name=$(MY_NODE_NAME),
+                k8s.namespace.name=$(MY_NAMESPACE)
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: NotRequired
+            - resourceName: memory
+              restartPolicy: RestartContainer
+          resources:
+            requests:
+              cpu: "578m"
+              memory: "2000Mi"
+            limits:
+              memory: "6000Mi"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            # initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            # initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 5
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+      restartPolicy: Always
+---
+# Source: globeco/templates/globeco-portfolio-accounting-service/portfolio-accounting-service-server.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-portfolio-accounting-service
+  namespace: globeco
+spec:
+  
+  replicas: 2
+
+  # A newly-ready pod must remain ready for 10 seconds before
+  # the Deployment considers it available.
+  minReadySeconds: 10
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+
+  selector:
+    matchLabels:
+      app: globeco-portfolio-accounting-service
+  template:
+    metadata:
+      labels:
+        app: globeco-portfolio-accounting-service
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:18.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until pg_isready -h globeco-portfolio-accounting-service-postgresql -p 5432; do
+                echo "Waiting for PostgreSQL to be ready..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready."
+        - name: wait-for-redis
+          image: redis:7-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until redis-cli -h globeco-portfolio-accounting-service-redis -p 6379 ping | grep -q PONG; do
+                echo "Waiting for Redis to be ready..."
+                sleep 2
+              done
+              echo "Redis is ready."
+      containers:
+        - name: globeco-portfolio-accounting-service
+          image: kasbench/globeco-portfolio-accounting-service-server:1.0.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8087
+          env:
+            - name: KAFKA_BROKERS
+              value: "globeco-execution-service-kafka:9093"
+            - name: GLOBECO_PA_METRICS_ENHANCED_ENABLED
+              value: "true"
+            - name: GLOBECO_PA_METRICS_ENHANCED_SERVICE_NAME
+              value: "globeco-portfolio-accounting-service"
+            # - name: GODEBUG
+            #   value: "http2debug=2"
+            
+            # Inject the node and pod metadata from the Downward API
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: MY_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+              
+            - name: GLOBECO_PA_TRACING_ENDPOINT
+              value: "$(NODE_IP):4317"
+
+            # Define standard service identity attributes
+            - name: OTEL_SERVICE_NAME
+              value: "globeco-portfolio-accounting-service" 
+            - name: OTEL_SERVICE_NAMESPACE
+              value: "globeco"
+            
+            # Inject Kubernetes metadata as resource attributes for k8sattributes processor
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: >-
+                k8s.pod.ip=$(MY_POD_IP),
+                k8s.pod.name=$(MY_POD_NAME),
+                k8s.node.name=$(MY_NODE_NAME),
+                k8s.namespace.name=$(MY_NAMESPACE)  
+
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: NotRequired
+            - resourceName: memory
+              restartPolicy: RestartContainer
+          resources:
+            requests:
+              cpu: "114m"
+              memory: "200Mi"
+            limits:
+              memory: "6000Mi"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8087
+            # initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8087
+            # initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8087
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 12
+---
+# Source: globeco/templates/globeco-portfolio-management-portal/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-portfolio-management-portal
+  namespace: globeco
+  labels:
+    app: globeco-portfolio-management-portal
+spec:
+  
+  replicas: 2
+
+  # A newly-ready pod must remain ready for 10 seconds before
+  # the Deployment considers it available.
+  minReadySeconds: 10
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+
+  selector:
+    matchLabels:
+      app: globeco-portfolio-management-portal
+  template:
+    metadata:
+      labels:
+        app: globeco-portfolio-management-portal
+        version: v1.0.1
+    spec:
+      containers:
+        - name: globeco-portfolio-management-portal
+          image: kasbench/globeco-portfolio-management-portal:1.0.5
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            # OpenTelemetry Configuration
+            - name: OTEL_SERVICE_NAME
+              value: "globeco-portfolio-management-portal"
+            - name: OTEL_SERVICE_VERSION
+              value: "0.1.0"
+            # Inject the node IP from the Downward API
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            # Try HTTP endpoint first (port 4318)
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://$(NODE_IP):4318"
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: "http://$(NODE_IP):4318/v1/traces"
+            - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+              value: "http://$(NODE_IP):4318/v1/metrics"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.name=globeco-portfolio-management-portal,service.version=0.1.0,deployment.environment=production,service.namespace=globeco"
+            # Enable debug mode for better visibility
+            - name: OTEL_DEBUG
+              value: "false"
+            - name: OTEL_LOG_LEVEL
+              value: "error"
+            # Additional OTLP configuration
+            - name: OTEL_EXPORTER_OTLP_INSECURE
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            # Metric export configuration
+            # - name: OTEL_METRIC_EXPORT_INTERVAL
+            #   value: "5000"
+            - name: OTEL_METRIC_EXPORT_TIMEOUT
+              value: "30000"
+            - name: OTEL_TRACE_EXPORT_TIMEOUT
+              value: "30000"
+            # Feature flags
+            - name: OTEL_ENABLE_AUTO_INSTRUMENTATION
+              value: "true"
+            - name: OTEL_ENABLE_CUSTOM_METRICS
+              value: "true"
+            - name: OTEL_ENABLE_CUSTOM_TRACING
+              value: "true"
+            # Additional debugging
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+            - name: OTEL_METRICS_EXPORTER
+              value: "otlp"
+            # Trace context propagation configuration
+            - name: OTEL_PROPAGATORS
+              value: "tracecontext,baggage,b3"
+            # Next.js configuration
+            - name: NODE_ENV
+              value: "production"
+            - name: NEXT_RUNTIME
+              value: "nodejs"
+            # Hostname for service instance identification
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # Data Cleanup
+            - name: DATA_CLEANUP_EMPTY_PORTFOLIOS
+              value: "false"
+            - name: DATA_CLEANUP_EMPTY_REBALANCES
+              value: "false"
+            # Backend services configuration
+            - name: ALLOCATION_SERVICE_HOST
+              value: "globeco-allocation-service"
+            - name: ALLOCATION_SERVICE_PORT
+              value: "8089"
+            - name: PORTFOLIO_SERVICE_HOST
+              value: "globeco-portfolio-service"
+            - name: PORTFOLIO_SERVICE_PORT
+              value: "8000"
+            - name: ORDER_GENERATION_SERVICE_HOST
+              value: "globeco-order-generation-service"
+            - name: ORDER_GENERATION_SERVICE_PORT
+              value: "8088"
+            - name: ORDER_BATCH_SIZE
+              value: "25"
+            # API timeout configuration
+            - name: NEXT_PUBLIC_API_TIMEOUT
+              value: "15000"
+
+          # Health checks that will generate telemetry data
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            # initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            # initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: NotRequired
+            - resourceName: memory
+              restartPolicy: RestartContainer
+          resources:
+            requests:
+              cpu: "1182m"
+              memory: "1200Mi"
+            limits:
+              memory: "6000Mi"
+---
+# Source: globeco/templates/globeco-portfolio-service/globeco-portfolio-service.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-portfolio-service
+  namespace: globeco
+  labels:
+    app: globeco-portfolio-service
+spec:
+  
+  replicas: 2
+
+  # A newly-ready pod must remain ready for 10 seconds before
+  # the Deployment considers it available.
+  minReadySeconds: 10
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+
+  selector:
+    matchLabels:
+      app: globeco-portfolio-service
+  template:
+    metadata:
+      labels:
+        app: globeco-portfolio-service
+    spec:
+      initContainers:
+        - name: wait-for-mongodb
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for MongoDB at globeco-portfolio-service-mongodb:27017..."
+              until nc -z globeco-portfolio-service-mongodb 27017; do
+                echo "MongoDB not ready yet, retrying in 2s..."
+                sleep 2
+              done
+              echo "MongoDB is reachable."
+      containers:
+        - name: globeco-portfolio-service
+          image: kasbench/globeco-portfolio-service:1.0.4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            # Inject the node IP from the Downward API
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: MONGODB_URI
+              value: "mongodb://globeco-portfolio-service-mongodb:27017"
+            - name: OTEL_METRICS_LOGGING_ENABLED
+              value: "true"
+            - name: ENABLE_METRICS
+              value: "true"
+            - name: METRICS_DEBUG_LOGGING
+              value: "false"
+            # Thread Metrics Configuration
+            - name: ENABLE_THREAD_METRICS
+              value: "true"
+            - name: THREAD_METRICS_UPDATE_INTERVAL
+              value: "1.0"
+            - name: THREAD_METRICS_DEBUG_LOGGING
+              value: "false"
+            - name: ENABLE_METRICS_MIDDLEWARE
+              value: "true"
+            # Service Namespace Label
+            - name: SERVICE_NAMESPACE
+              value: "globeco"
+            # OpenTelemetry Metrics Export Configuration
+            - name: OTEL_METRICS_EXPORT_INTERVAL_SECONDS
+              value: "5"
+            - name: OTEL_METRICS_EXPORT_TIMEOUT_SECONDS
+              value: "10"
+            # OpenTelemetry Configuration
+            - name: OTEL_SERVICE_NAME
+              value: "globeco-portfolio-service"
+            - name: OTEL_SERVICE_NAMESPACE
+              value: "globeco"
+            # Use NODE_IP for daemonset + hostport routing
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "$(NODE_IP):4317"
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: "http://$(NODE_IP):4318/v1/traces"
+            - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+              value: "http://$(NODE_IP):4318/v1/metrics"
+            - name: OTEL_EXPORTER_OTLP_INSECURE
+              value: "true"
+            # Pod information for k8sattributes processor
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: MAX_POOL_SIZE
+              value: "50"     # Larger pool for development
+            - name: MIN_POOL_SIZE
+              value: "10"
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: NotRequired
+            - resourceName: memory
+              restartPolicy: RestartContainer
+          resources:
+            requests:
+              cpu: "2092m"
+              memory: "1200Mi"
+            limits:
+              memory: "6000Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            periodSeconds: 5
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            periodSeconds: 5
+            timeoutSeconds: 10
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8000
+            failureThreshold: 30
+            periodSeconds: 5
+            timeoutSeconds: 10
+---
+# Source: globeco/templates/globeco-pricing-service/globeco-pricing-service-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-pricing-service
+  namespace: globeco
+spec:
+  
+  replicas: 2
+
+  # A newly-ready pod must remain ready for 10 seconds before
+  # the Deployment considers it available.
+  minReadySeconds: 10
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+
+  selector:
+    matchLabels:
+      app: globeco-pricing-service
+  template:
+    metadata:
+      labels:
+        app: globeco-pricing-service
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:18.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until pg_isready -h globeco-pricing-service-postgresql -p 5432; do
+                echo "Waiting for PostgreSQL to be ready..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready."
+      containers:
+        - name: globeco-pricing-service
+          image: kasbench/globeco-pricing-service:1.0.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8083
+          env:
+            # Inject the node and pod metadata from the Downward API
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: MY_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace  
+
+            # Inject the node IP from the Downward API
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            
+            - name: OTLP_METRICS_ENDPOINT
+              value: "http://$(NODE_IP):4318/v1/metrics"
+            - name: OTLP_TRACING_ENDPOINT
+              value: "http://$(NODE_IP):4318/v1/traces"
+
+            # Define standard service identity attributes
+            - name: OTEL_SERVICE_NAME
+              value: "globeco-pricing-service"  # Changed to match container name
+            - name: OTEL_SERVICE_NAMESPACE
+              value: "globeco"
+            
+            # Inject Kubernetes metadata as resource attributes for k8sattributes processor
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: >-
+                k8s.pod.ip=$(MY_POD_IP),
+                k8s.pod.name=$(MY_POD_NAME),
+                k8s.node.name=$(MY_NODE_NAME),
+                k8s.namespace.name=$(MY_NAMESPACE)
+            # - name: OTEL_RESOURCE_ATTRIBUTES
+            #   value: "k8s.pod.ip=$(MY_POD_IP),k8s.pod.name=$(MY_POD_NAME),k8s.node.name=$(MY_NODE_NAME),k8s.namespace.name=$(MY_NAMESPACE)"
+            - name: k8s_pod_ip
+              value: $(MY_POD_IP)
+            - name: k8s_pod_name
+              value: $(MY_POD_NAME)
+            - name: k8s_node_name
+              value: $(MY_NODE_NAME)
+            - name: k8s_namespace_name
+              value: $(MY_NAMESPACE)
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: NotRequired
+            - resourceName: memory
+              restartPolicy: RestartContainer
+          resources:
+            requests:
+              cpu: "342m"
+              memory: "1800Mi"
+            limits:
+              memory: "6000Mi"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8083
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8083
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8083
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 40
+---
+# Source: globeco/templates/globeco-security-service/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-security-service
+  namespace: globeco
+  labels:
+    app: globeco-security-service
+spec:
+  
+  replicas: 2
+
+  # A newly-ready pod must remain ready for 10 seconds before
+  # the Deployment considers it available.
+  minReadySeconds: 10
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+
+  selector:
+    matchLabels:
+      app: globeco-security-service
+  template:
+    metadata:
+      labels:
+        app: globeco-security-service
+    spec:
+      initContainers:
+        - name: wait-for-mongodb
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for MongoDB at globeco-security-service-mongodb:27017..."
+              until nc -z globeco-security-service-mongodb 27017; do
+                echo "MongoDB is unavailable - sleeping"
+                sleep 2
+              done
+              echo "MongoDB is up - continuing"
+      containers:
+        - name: globeco-security-service
+          image: kasbench/globeco-security-service:1.0.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            # - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            #   value: "otel-collector-daemonset-collector.globeco.svc.cluster.local:4317"
+            # Inject the node IP from the Downward API
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            # Point OTEL exporter to the local collector on the same node
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "$(NODE_IP):4317"
+            - name: OTEL_SERVICE_NAME
+              value: "globeco-security-service"
+            - name: OTEL_EXPORTER_OTLP_INSECURE
+              value: "true"
+            - name: ENABLE_METRICS
+              value: "true"
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: NotRequired
+            - resourceName: memory
+              restartPolicy: RestartContainer
+          resources:
+            requests:
+              cpu: "458m"
+              memory: "400Mi"
+            limits:
+              memory: "6000Mi"
+          livenessProbe:
+            httpGet:
+              path: /health/liveness
+              port: 8000
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/readiness
+              port: 8000
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: 8000
+              scheme: HTTP
+            failureThreshold: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+---
+# Source: globeco/templates/globeco-trade-service/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: globeco-trade-service
+  namespace: globeco
+spec:
+  
+  replicas: 2
+
+  # A newly-ready pod must remain ready for 10 seconds before
+  # the Deployment considers it available.
+  minReadySeconds: 10
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+
+  selector:
+    matchLabels:
+      app: globeco-trade-service
+  template:
+    metadata:
+      labels:
+        app: globeco-trade-service
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:18.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until pg_isready -h globeco-trade-service-postgresql -p 5432; do
+                echo "Waiting for PostgreSQL to be ready..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready."
+      containers:
+        - name: globeco-trade-service
+          image: kasbench/globeco-trade-service:1.0.4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+          env:
+            - name: LOG_LEVEL
+              value: "INFO"
+
+              # Inject the node and pod metadata from the Downward API
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: MY_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            
+            # Point OTEL exporter to the local collector on the same node
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://$(NODE_IP):4317"
+
+            - name: MANAGEMENT_OTLP_METRICS_EXPORT_URL
+              value: http://$(NODE_IP):4318/v1/metrics
+            
+            - name: MANAGEMENT_OTLP_TRACING_EXPORT_URL
+              value: http://$(NODE_IP):4318/v1/traces
+            
+            
+            
+            # Define standard service identity attributes
+            - name: OTEL_SERVICE_NAME
+              value: "globeco-trade-service"  # Changed to match container name
+            - name: OTEL_SERVICE_NAMESPACE
+              value: "globeco"
+            
+            # Inject Kubernetes metadata as resource attributes for k8sattributes processor
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: >-
+                service.name=globeco-trade-service,
+                service.namespace=globeco,
+                k8s.pod.ip=$(MY_POD_IP),
+                k8s.pod.name=$(MY_POD_NAME),
+                k8s.node.name=$(MY_NODE_NAME),
+                k8s.namespace.name=$(MY_NAMESPACE)
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: NotRequired
+            - resourceName: memory
+              restartPolicy: RestartContainer
+          resources:
+            requests:
+              cpu: "1076m"
+              memory: "2200Mi"
+            limits:
+              memory: "6000Mi"
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 10
+            failureThreshold: 40
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8082
+            initialDelaySeconds: 0
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8082
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      restartPolicy: Always
+---
+# Source: globeco/templates/globeco-allocation-service/postgresql.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: globeco-allocation-service-postgresql
+  namespace: globeco
+spec:
+  serviceName: globeco-allocation-service-postgresql-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-allocation-service-postgresql
+  template:
+    metadata:
+      labels:
+        app: globeco-allocation-service-postgresql
+    spec:
+      initContainers:
+        - name: init-postgres-data
+          image: busybox:1.35
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /mnt/postgres-data/pgdata
+              chown -R 999:999 /mnt/postgres-data
+              chmod 755 /mnt/postgres-data
+              chmod 700 /mnt/postgres-data/pgdata
+          volumeMounts:
+            - name: globeco-allocation-service-postgresdb-storage
+              mountPath: /mnt/postgres-data
+      containers:
+        - name: globeco-allocation-service-postgresql
+          image: postgres:18.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: "trust"
+            - name: PGDATA
+              value: "/mnt/postgres-data/pgdata"
+          args:
+            - "-c"
+            - "listen_addresses=0.0.0.0"
+          volumeMounts:
+            - name: globeco-allocation-service-postgresdb-storage
+              mountPath: /mnt/postgres-data
+      volumes:
+        - name: globeco-allocation-service-postgresdb-storage
+          persistentVolumeClaim:
+            claimName: allocation-service-postgresql-pvc
+---
+# Source: globeco/templates/globeco-execution-service/postgresql-deployment.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: globeco-execution-service-postgresql
+  namespace: globeco
+spec:
+  serviceName: globeco-execution-service-postgresql-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-execution-service-postgresql
+  template:
+    metadata:
+      labels:
+        app: globeco-execution-service-postgresql
+    spec:
+      initContainers:
+        - name: init-postgres-data
+          image: busybox:1.35
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /mnt/postgres-data/pgdata
+              chown -R 999:999 /mnt/postgres-data
+              chmod 755 /mnt/postgres-data
+              chmod 700 /mnt/postgres-data/pgdata
+          volumeMounts:
+            - name: globeco-execution-service-postgresdb-storage
+              mountPath: /mnt/postgres-data
+      containers:
+        - name: globeco-execution-service-postgresql
+          image: postgres:18.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: "trust"
+            - name: PGDATA
+              value: "/mnt/postgres-data/pgdata"
+          args:
+            - "-c"
+            - "listen_addresses=0.0.0.0"
+          volumeMounts:
+            - name: globeco-execution-service-postgresdb-storage
+              mountPath: /mnt/postgres-data
+  volumeClaimTemplates:
+    - metadata:
+        name: globeco-execution-service-postgresdb-storage
+        labels:
+          app: globeco-execution-service-postgresql
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: ebs-gp3
+        resources:
+          requests:
+            storage: 10Gi
+---
+# Source: globeco/templates/globeco-fix-engine/postgresql-deployment.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: globeco-fix-engine-postgresql
+  namespace: globeco
+spec:
+  serviceName: globeco-fix-engine-postgresql-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-fix-engine-postgresql
+  template:
+    metadata:
+      labels:
+        app: globeco-fix-engine-postgresql
+    spec:
+      initContainers:
+        - name: init-postgres-data
+          image: busybox:1.35
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /mnt/postgres-data/pgdata
+              chown -R 999:999 /mnt/postgres-data
+              chmod 755 /mnt/postgres-data
+              chmod 700 /mnt/postgres-data/pgdata
+          volumeMounts:
+            - name: globeco-fix-engine-postgresdb-storage
+              mountPath: /mnt/postgres-data
+      containers:
+        - name: globeco-fix-engine-postgresql
+          image: postgres:18.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: "trust"
+            - name: PGDATA
+              value: "/mnt/postgres-data/pgdata"
+          args:
+            - "-c"
+            - "listen_addresses=0.0.0.0"
+          volumeMounts:
+            - name: globeco-fix-engine-postgresdb-storage
+              mountPath: /mnt/postgres-data
+      volumes:
+        - name: globeco-fix-engine-postgresdb-storage
+          persistentVolumeClaim:
+            claimName: fix-engine-postgres-pvc
+---
+# Source: globeco/templates/globeco-order-generation-service/mongodb-deployment.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: globeco-order-generation-service-mongodb
+  namespace: globeco
+spec:
+  serviceName: globeco-order-generation-service-mongodb
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-order-generation-service-mongodb
+  template:
+    metadata:
+      labels:
+        app: globeco-order-generation-service-mongodb
+    spec:
+      containers:
+        - name: globeco-order-generation-service-mongodb
+          image: mongo:6.0
+          ports:
+            - containerPort: 27017
+          args:
+            - "--profile=2"
+            - "--slowms=0"
+          volumeMounts:
+            - name: mongodb-storage
+              mountPath: /data/db
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "400Mi"
+            limits:
+              cpu: "500m"
+              memory: "2Gi"
+      volumes:
+        - name: mongodb-storage
+          persistentVolumeClaim:
+            claimName: order-generation-service-mongodb-pvc
+---
+# Source: globeco/templates/globeco-order-generation-service/redis.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: globeco-order-generation-service-redis
+  namespace: globeco
+spec:
+  serviceName: globeco-order-generation-service-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-order-generation-service-redis
+  template:
+    metadata:
+      labels:
+        app: globeco-order-generation-service-redis
+    spec:
+      securityContext:
+        fsGroup: 999  # Redis user group
+        runAsNonRoot: true
+      containers:
+        - name: globeco-order-generation-service-redis
+          image: redis:7-alpine
+          command: ["redis-server"]
+          args: ["/etc/redis/redis.conf"]
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+            - name: redis-config
+              mountPath: /etc/redis
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "100Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            runAsUser: 999  # Redis user
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: redis-config
+          configMap:
+            name: redis-config
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: order-generation-service-redis-pvc
+---
+# Source: globeco/templates/globeco-order-service/postgresql-deployment.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: globeco-order-service-postgresql
+  namespace: globeco
+spec:
+  serviceName: globeco-order-service-postgresql-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-order-service-postgresql
+  template:
+    metadata:
+      labels:
+        app: globeco-order-service-postgresql
+    spec:
+      volumes:
+        - name: globeco-order-service-postgresdb-storage
+          persistentVolumeClaim:
+            claimName: order-service-postgres-pvc
+      initContainers:
+        - name: init-postgres-data
+          image: busybox:1.35
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /mnt/postgres-data/pgdata
+              chown -R 999:999 /mnt/postgres-data
+              chmod 755 /mnt/postgres-data
+              chmod 700 /mnt/postgres-data/pgdata
+          volumeMounts:
+            - name: globeco-order-service-postgresdb-storage
+              mountPath: /mnt/postgres-data
+      containers:
+        - name: globeco-order-service-postgresql
+          image: postgres:18.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: "trust"
+            - name: PGDATA
+              value: "/mnt/postgres-data/pgdata"
+          args:
+            - "-c"
+            - "listen_addresses=0.0.0.0"
+            - "-c"
+            - "max_connections=500"
+            - "-c"
+            - "shared_buffers=512MB"
+            - "-c"
+            - "effective_cache_size=1536MB"
+            - "-c"
+            - "maintenance_work_mem=128MB"
+            - "-c"
+            - "checkpoint_completion_target=0.9"
+            - "-c"
+            - "wal_buffers=16MB"
+            - "-c"
+            - "default_statistics_target=100"
+            - "-c"
+            - "random_page_cost=1.1"
+            - "-c"
+            - "effective_io_concurrency=200"
+            - "-c"
+            - "work_mem=2621kB"
+            - "-c"
+            - "min_wal_size=1GB"
+            - "-c"
+            - "max_wal_size=4GB"
+          volumeMounts:
+            - name: globeco-order-service-postgresdb-storage
+              mountPath: /mnt/postgres-data
+---
+# Source: globeco/templates/globeco-portfolio-accounting-service/portfolio-accounting-service-postgresql.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: globeco-portfolio-accounting-service-postgresql
+  namespace: globeco
+spec:
+  serviceName: globeco-portfolio-accounting-service-postgresql-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-portfolio-accounting-service-postgresql
+  template:
+    metadata:
+      labels:
+        app: globeco-portfolio-accounting-service-postgresql
+    spec:
+      initContainers:
+        - name: init-postgres-data
+          image: busybox:1.35
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /mnt/postgres-data/pgdata
+              chown -R 999:999 /mnt/postgres-data
+              chmod 755 /mnt/postgres-data
+              chmod 700 /mnt/postgres-data/pgdata
+          volumeMounts:
+            - name: globeco-portfolio-accounting-service-postgresdb-storage
+              mountPath: /mnt/postgres-data
+      containers:
+        - name: globeco-portfolio-accounting-service-postgresql
+          image: postgres:18.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: "trust"
+            - name: PGDATA
+              value: "/mnt/postgres-data/pgdata"
+          args:
+            - "-c"
+            - "listen_addresses=0.0.0.0"
+          volumeMounts:
+            - name: globeco-portfolio-accounting-service-postgresdb-storage
+              mountPath: /mnt/postgres-data
+      volumes:
+        - name: globeco-portfolio-accounting-service-postgresdb-storage
+          persistentVolumeClaim:
+            claimName: portfolio-accounting-service-postgres-pvc
+---
+# Source: globeco/templates/globeco-portfolio-accounting-service/redis.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: globeco-portfolio-accounting-service-redis
+  namespace: globeco
+spec:
+  serviceName: globeco-portfolio-accounting-service-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-portfolio-accounting-service-redis
+  template:
+    metadata:
+      labels:
+        app: globeco-portfolio-accounting-service-redis
+    spec:
+      securityContext:
+        fsGroup: 999  # Redis user group
+        runAsNonRoot: true
+      containers:
+        - name: globeco-portfolio-accounting-service-redis
+          image: redis:7-alpine
+          command: ["redis-server"]
+          args: ["/etc/redis/redis.conf"]
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: redis-data-portfolio-accounting
+              mountPath: /data
+            - name: redis-config
+              mountPath: /etc/redis
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "100Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            runAsUser: 999  # Redis user
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: redis-config
+          configMap:
+            name: redis-config-portfolio-accounting
+        - name: redis-data-portfolio-accounting
+          persistentVolumeClaim:
+            claimName: portfolio-accounting-service-redis-pvc
+---
+# Source: globeco/templates/globeco-portfolio-service/globeco-portfolio-service-mongodb-ebs.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: globeco-portfolio-service-mongodb
+  namespace: globeco
+spec:
+  serviceName: globeco-portfolio-service-mongodb
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-portfolio-service-mongodb
+  template:
+    metadata:
+      labels:
+        app: globeco-portfolio-service-mongodb
+    spec:
+      containers:
+        - name: globeco-portfolio-service-mongodb
+          image: mongo:6.0
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: mongodb-data
+              mountPath: /data/db
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "200Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+      volumes:
+        - name: mongodb-data
+          persistentVolumeClaim:
+            claimName: portfolio-service-mongodb-pvc
+---
+# Source: globeco/templates/globeco-pricing-service/globeco-postgresql-deployment.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: globeco-pricing-service-postgresql
+  namespace: globeco
+spec:
+  serviceName: globeco-postgresql-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-pricing-service-postgresql
+  template:
+    metadata:
+      labels:
+        app: globeco-pricing-service-postgresql
+    spec:
+      initContainers:
+        - name: init-postgres-data
+          image: busybox:1.35
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /var/lib/postgresql/data/pgdata
+              chown -R 999:999 /var/lib/postgresql/data/pgdata
+              chmod 700 /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgredb-storage
+              mountPath: /var/lib/postgresql  # Changed here
+      containers:
+        - name: globeco-pricing-service-postgresql
+          image: postgres:18.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: "trust"
+            - name: PGDATA
+              value: "/var/lib/postgresql/data/pgdata"
+          args:
+            - "-c"
+            - "listen_addresses=0.0.0.0"
+          volumeMounts:
+            - name: postgredb-storage
+              mountPath: /var/lib/postgresql  # Changed here
+      volumes:
+        - name: postgredb-storage
+          persistentVolumeClaim:
+            claimName: pricing-service-postgres-pvc
+---
+# Source: globeco/templates/globeco-security-service/globeco-security-service-mongodb.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: globeco-security-service-mongodb
+  namespace: globeco
+spec:
+  serviceName: globeco-security-service-mongodb
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-security-service-mongodb
+  template:
+    metadata:
+      labels:
+        app: globeco-security-service-mongodb
+    spec:
+      containers:
+        - name: globeco-security-service-mongodb
+          image: mongo:6.0
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: mongodb-data-security-service
+              mountPath: /data/db
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "200Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+      volumes:
+        - name: mongodb-data-security-service
+          persistentVolumeClaim:
+            claimName: security-service-mongodb-pvc
+---
+# Source: globeco/templates/globeco-trade-service/postgresql-deployment.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: globeco-trade-service-postgresql
+  namespace: globeco
+spec:
+  serviceName: globeco-trade-service-postgresql-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-trade-service-postgresql
+  template:
+    metadata:
+      labels:
+        app: globeco-trade-service-postgresql
+    spec:
+      initContainers:
+        - name: init-postgres-data
+          image: busybox:1.35
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /mnt/postgres-data/pgdata
+              chown -R 999:999 /mnt/postgres-data
+              chmod 755 /mnt/postgres-data
+              chmod 700 /mnt/postgres-data/pgdata
+          volumeMounts:
+            - name: globeco-trade-service-postgresdb-storage
+              mountPath: /mnt/postgres-data
+      containers:
+        - name: globeco-trade-service-postgresql
+          image: postgres:18.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: "trust"
+            - name: PGDATA
+              value: "/mnt/postgres-data/pgdata"
+          args:
+            - "-c"
+            - "listen_addresses=0.0.0.0"
+            - "-c"
+            - "max_connections=500"
+            - "-c"
+            - "shared_buffers=512MB"
+            - "-c"
+            - "effective_cache_size=2GB"
+            - "-c"
+            - "work_mem=4MB"
+            - "-c"
+            - "maintenance_work_mem=128MB"
+            - "-c"
+            - "shared_preload_libraries=pg_stat_statements"
+            - "-c"
+            - "pg_stat_statements.track=all"
+          volumeMounts:
+            - name: globeco-trade-service-postgresdb-storage
+              mountPath: /mnt/postgres-data
+          resources:
+            requests:
+              memory: "4Gi"
+              cpu: "2000m"
+            limits:
+              memory: "6Gi"
+              cpu: "2000m"
+      volumes:
+        - name: globeco-trade-service-postgresdb-storage
+          persistentVolumeClaim:
+            claimName: trade-service-postgres-pvc
+---
+# Source: globeco/templates/globeco-observability/metrics_server_deployment.yaml
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: v1beta1.metrics.k8s.io
+spec:
+  group: metrics.k8s.io
+  groupPriorityMinimum: 100
+  insecureSkipTLSVerify: true
+  service:
+    name: metrics-server
+    namespace: kube-system
+  version: v1beta1
+  versionPriority: 100
+---
+# Source: globeco/templates/globeco-gateway/httproutes.yaml
+# =============================================================================
+# HTTPRoutes — path-based routing for all 12 globeco microservices
+# =============================================================================
+# Each route maps a path prefix to the corresponding ClusterIP Service.
+# The Gateway fans traffic out based on the URL path.
+#
+# Path design:
+#   /allocations    → globeco-allocation-service:8089
+#   /confirmations  → globeco-confirmation-service:80
+#   /executions     → globeco-execution-service:8084
+#   /fix-engine     → globeco-fix-engine-service:80
+#   /order-gen      → globeco-order-generation-service:8088
+#   /orders         → globeco-order-service:8081
+#   /accounting     → globeco-portfolio-accounting-service:8087
+#   /               → globeco-portfolio-management-portal:3000  (default/catch-all)
+#   /portfolios     → globeco-portfolio-service:8000
+#   /pricing        → globeco-pricing-service:8083
+#   /securities     → globeco-security-service:8000
+#   /trades         → globeco-trade-service:8082
+# =============================================================================
+---
+# Source: globeco/templates/globeco-observability/prometheus-server-ext.yaml
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: prometheus-server-ext
+#   namespace: globeco
+#   labels:
+#     app.kubernetes.io/component: server
+#     app.kubernetes.io/instance: prometheus
+#     app.kubernetes.io/managed-by: Helm
+#     app.kubernetes.io/name: prometheus
+#     app.kubernetes.io/part-of: prometheus
+#     app.kubernetes.io/version: v3.4.2
+#     helm.sh/chart: prometheus-27.23.0
+# spec:
+#   type: NodePort
+#   externalTrafficPolicy: Cluster
+#   internalTrafficPolicy: Cluster
+#   ports:
+#   - name: http
+#     port: 80
+#     targetPort: 9090
+#     nodePort: 31565
+#     protocol: TCP
+#   selector:
+#     app.kubernetes.io/component: server
+#     app.kubernetes.io/instance: prometheus
+#     app.kubernetes.io/name: prometheus
+---
+# Source: globeco/templates/other/monitoring-namespace.yaml
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: globeco
+#   labels:
+#     app.kubernetes.io/managed-by: Helm
+#   annotations:
+#     meta.helm.sh/release-name: globeco
+#     meta.helm.sh/release-namespace: globeco
+---
+# Source: globeco/templates/globeco-gateway/envoy-proxy-nodeport-patch.yaml
+# =============================================================================
+# EnvoyProxy — pins the Gateway's backing Service to NodePort 30080
+# =============================================================================
+# This ensures the Envoy proxy Service gets nodePort 30080, which matches the
+# NLB target group configuration (nlb_config.listeners[0].target_port = 30080).
+# =============================================================================
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: globeco-proxy-config
+  namespace: globeco
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        type: NodePort
+        patch:
+          type: StrategicMerge
+          value:
+            spec:
+              ports:
+                - name: http
+                  protocol: TCP
+                  port: 80
+                  targetPort: 10080
+                  nodePort: 30080
+---
+# Source: globeco/templates/globeco-gateway/gateway.yaml
+# =============================================================================
+# Gateway — the single entrypoint for all globeco services
+# =============================================================================
+# Envoy Gateway will create a Service of type NodePort (per the infrastructure
+# annotation below). The NLB forwards :80 → NodePort 30080, so this Gateway
+# listens on port 80 and the backing EnvoyProxy is configured to use 30080.
+#
+# Traffic flow:
+#   NLB :80 → Worker Node :30080 → Envoy Gateway Pod → HTTPRoute → Service
+# =============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: globeco-gateway
+  namespace: globeco
+  annotations:
+    # Tell Envoy Gateway to expose as NodePort on the specific port the NLB targets
+    gateway.envoyproxy.io/service-type: NodePort
+spec:
+  gatewayClassName: envoy-gateway
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: globeco-proxy-config
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+---
+# Source: globeco/templates/globeco-gateway/gateway-class.yaml
+# =============================================================================
+# GatewayClass — selects Envoy Gateway as the implementation
+# =============================================================================
+# Prerequisite: Install Envoy Gateway into the cluster first:
+#   helm install eg oci://docker.io/envoyproxy/gateway-helm \
+#     --version v1.3.0 \
+#     -n envoy-gateway-system --create-namespace
+# =============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: envoy-gateway
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+# Source: globeco/templates/globeco-gateway/httproutes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: allocation-route
+  namespace: globeco
+spec:
+  parentRefs:
+    - name: globeco-gateway
+      namespace: globeco
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /allocations
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: globeco-allocation-service
+          port: 8089
+      timeouts:
+        request: 240s
+        backendRequest: 240s
+---
+# Source: globeco/templates/globeco-gateway/httproutes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: confirmation-route
+  namespace: globeco
+spec:
+  parentRefs:
+    - name: globeco-gateway
+      namespace: globeco
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /confirmations
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: globeco-confirmation-service
+          port: 80
+      timeouts:
+        request: 60s
+        backendRequest: 60s
+---
+# Source: globeco/templates/globeco-gateway/httproutes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: execution-route
+  namespace: globeco
+spec:
+  parentRefs:
+    - name: globeco-gateway
+      namespace: globeco
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /executions
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: globeco-execution-service
+          port: 8084
+      timeouts:
+        request: 60s
+        backendRequest: 60s
+---
+# Source: globeco/templates/globeco-gateway/httproutes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: fix-engine-route
+  namespace: globeco
+spec:
+  parentRefs:
+    - name: globeco-gateway
+      namespace: globeco
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /fix-engine
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: globeco-fix-engine-service
+          port: 80
+      timeouts:
+        request: 60s
+        backendRequest: 60s
+---
+# Source: globeco/templates/globeco-gateway/httproutes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: order-generation-route
+  namespace: globeco
+spec:
+  parentRefs:
+    - name: globeco-gateway
+      namespace: globeco
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /order-gen
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: globeco-order-generation-service
+          port: 8088
+      timeouts:
+        request: 60s
+        backendRequest: 60s
+---
+# Source: globeco/templates/globeco-gateway/httproutes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: order-route
+  namespace: globeco
+spec:
+  parentRefs:
+    - name: globeco-gateway
+      namespace: globeco
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /orders
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: globeco-order-service
+          port: 8081
+      timeouts:
+        request: 60s
+        backendRequest: 60s
+---
+# Source: globeco/templates/globeco-gateway/httproutes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: portfolio-accounting-route
+  namespace: globeco
+spec:
+  parentRefs:
+    - name: globeco-gateway
+      namespace: globeco
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /accounting
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: globeco-portfolio-accounting-service
+          port: 8087
+      timeouts:
+        request: 60s
+        backendRequest: 60s
+---
+# Source: globeco/templates/globeco-gateway/httproutes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: portal-route
+  namespace: globeco
+spec:
+  parentRefs:
+    - name: globeco-gateway
+      namespace: globeco
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: globeco-portfolio-management-portal
+          port: 3000
+      timeouts:
+        request: 60s
+        backendRequest: 60s
+---
+# Source: globeco/templates/globeco-gateway/httproutes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: portfolio-route
+  namespace: globeco
+spec:
+  parentRefs:
+    - name: globeco-gateway
+      namespace: globeco
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /portfolios
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: globeco-portfolio-service
+          port: 8000
+      timeouts:
+        request: 60s
+        backendRequest: 60s
+---
+# Source: globeco/templates/globeco-gateway/httproutes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: pricing-route
+  namespace: globeco
+spec:
+  parentRefs:
+    - name: globeco-gateway
+      namespace: globeco
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /pricing
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: globeco-pricing-service
+          port: 8083
+      timeouts:
+        request: 60s
+        backendRequest: 60s
+---
+# Source: globeco/templates/globeco-gateway/httproutes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: security-route
+  namespace: globeco
+spec:
+  parentRefs:
+    - name: globeco-gateway
+      namespace: globeco
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /securities
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: globeco-security-service
+          port: 8000
+      timeouts:
+        request: 60s
+        backendRequest: 60s
+---
+# Source: globeco/templates/globeco-gateway/httproutes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: trade-route
+  namespace: globeco
+spec:
+  parentRefs:
+    - name: globeco-gateway
+      namespace: globeco
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /trades
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: globeco-trade-service
+          port: 8082
+      timeouts:
+        request: 60s
+        backendRequest: 60s
+---
+# Source: globeco/templates/globeco-observability/otel-collector-daemonset.yaml
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-collector-daemonset
+  namespace: globeco
+spec:
+  mode: daemonset
+  image: otel/opentelemetry-collector-contrib:latest
+  serviceAccount: otel-collector-daemonset
+
+  # Pod Annotations for Prometheus autodiscovery
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8889"
+    prometheus.io/path: "/metrics"
+
+  env:
+    - name: MY_POD_IP
+      valueFrom:
+        fieldRef:
+          fieldPath: status.podIP
+    - name: MY_POD_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.name
+    - name: MY_NODE_NAME
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: spec.nodeName
+    - name: MY_NAMESPACE
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
+
+
+  # Ports configuration
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      hostPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      hostPort: 4318
+      protocol: TCP
+    - name: prometheus
+      port: 8889
+      hostPort: 8889
+      protocol: TCP
+    - name: pprof
+      port: 1777
+      targetPort: 1777
+      protocol: TCP
+    - name: zpages
+      port: 55679
+      targetPort: 55679
+      protocol: TCP
+
+  # Collector configuration
+  config:
+    receivers:
+      hostmetrics:
+        collection_interval: 30s
+        scrapers:
+          cpu: {}
+          disk: {}
+          load: {}
+          filesystem: {}
+          memory: {}
+          network: {}
+          paging: {}
+          process:
+            mute_process_name_error: true
+            mute_process_exe_error: true
+            mute_process_io_error: true
+          processes: {}
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+            cors:
+              allowed_origins: ["http://*", "https://*"]
+
+      # keep your DB and service receivers
+      postgresql/trade:
+        endpoint: globeco-trade-service-postgresql.globeco.svc.cluster.local:5432
+        username: postgres
+        password: none
+        databases: [postgres]
+        collection_interval: 10s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+      
+      # ... keep the rest of your postgresql/*, mongodb/*, redis/*, kafkametrics/* receivers unchanged ...
+      postgresql/trade_all:
+        endpoint: globeco-trade-service-postgresql.globeco.svc.cluster.local:5432
+        transport: tcp
+        username: postgres
+        password: none
+        databases:
+          - postgres
+        collection_interval: 10s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+      postgresql/allocation:
+        endpoint: globeco-allocation-service-postgresql.globeco.svc.cluster.local:5432
+        username: postgres
+        password: none
+        databases:
+          - postgres
+        collection_interval: 10s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+      postgresql/allocation_all:
+        endpoint: globeco-allocation-service-postgresql.globeco.svc.cluster.local:5432
+        transport: tcp
+        username: postgres
+        password: none
+        databases:
+          - postgres
+        collection_interval: 10s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+      postgresql/order:
+        endpoint: globeco-order-service-postgresql.globeco.svc.cluster.local:5432
+        username: postgres
+        password: none
+        databases:
+          - postgres
+        collection_interval: 10s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+      postgresql/order_all:
+        endpoint: globeco-order-service-postgresql.globeco.svc.cluster.local:5432
+        transport: tcp
+        username: postgres
+        password: none
+        databases:
+          - postgres
+        collection_interval: 10s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+      postgresql/pricing:
+        endpoint: globeco-pricing-service-postgresql.globeco.svc.cluster.local:5432
+        username: postgres
+        password: none
+        databases:
+          - postgres
+        collection_interval: 10s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+      postgresql/pricing_all:
+        endpoint: globeco-pricing-service-postgresql.globeco.svc.cluster.local:5432
+        transport: tcp
+        username: postgres
+        password: none
+        databases:
+          - postgres
+        collection_interval: 10s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+      postgresql/execution:
+        endpoint: globeco-execution-service-postgresql.globeco.svc.cluster.local:5432
+        username: postgres
+        password: none
+        databases:
+          - postgres
+        collection_interval: 10s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+      postgresql/execution_all:
+        endpoint: globeco-execution-service-postgresql.globeco.svc.cluster.local:5432
+        transport: tcp
+        username: postgres
+        password: none
+        databases:
+          - postgres
+        collection_interval: 10s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+      postgresql/fix:
+        endpoint: globeco-fix-engine-postgresql.globeco.svc.cluster.local:5432
+        username: postgres
+        password: none
+        databases:
+          - postgres
+        collection_interval: 10s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+      postgresql/fix_all:
+        endpoint: globeco-fix-engine-postgresql.globeco.svc.cluster.local:5432
+        transport: tcp
+        username: postgres
+        password: none
+        databases:
+          - postgres
+        collection_interval: 10s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+      postgresql/portfolio_accounting:
+        endpoint: globeco-portfolio-accounting-service-postgresql.globeco.svc.cluster.local:5432
+        username: postgres
+        password: none
+        databases:
+          - postgres
+        collection_interval: 10s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+      postgresql/portfolio_accounting_all:
+        endpoint: globeco-portfolio-accounting-service-postgresql.globeco.svc.cluster.local:5432
+        transport: tcp
+        username: postgres
+        password: none
+        databases:
+          - postgres
+        collection_interval: 10s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+      # mongodb/order_generation:
+      #  hosts:
+      #   - endpoint: globeco-order-generation-service-mongodb.globeco.svc.cluster.local:27017
+      #  collection_interval: 30s
+      #  initial_delay: 1s
+      #  tls:
+      #    insecure: true
+      #    insecure_skip_verify: true
+      #  metrics:
+      #    mongodb.uptime:
+      #      enabled: true
+      #    mongodb.commands.rate:
+      #      enabled: true
+      #    mongodb.health:
+      #      enabled: true
+      #    mongodb.operation.latency.time:
+      #      enabled: true
+      #    mongodb.queries.rate:
+      #      enabled: true
+      mongodb/portfolio:
+       hosts:
+        - endpoint: globeco-portfolio-service-mongodb.globeco.svc.cluster.local:27017
+       collection_interval: 30s
+       initial_delay: 1s
+       tls:
+         insecure: true
+         insecure_skip_verify: true
+       metrics:
+         mongodb.uptime:
+           enabled: true
+         mongodb.commands.rate:
+           enabled: true
+         mongodb.health:
+           enabled: true
+         mongodb.operation.latency.time:
+           enabled: true
+         mongodb.queries.rate:
+           enabled: true
+      mongodb/security:
+       hosts:
+        - endpoint: globeco-security-service-mongodb.globeco.svc.cluster.local:27017
+       collection_interval: 30s
+       initial_delay: 1s
+       tls:
+         insecure: true
+         insecure_skip_verify: true
+       metrics:
+         mongodb.uptime:
+           enabled: true
+         mongodb.commands.rate:
+           enabled: true
+         mongodb.health:
+           enabled: true
+         mongodb.operation.latency.time:
+           enabled: true
+         mongodb.queries.rate:
+           enabled: true
+      redis/order_generation:
+        endpoint: "globeco-order-generation-service-redis.globeco.svc.cluster.local:6379"
+        collection_interval: 10s
+        tls:
+          insecure: true
+      redis/portfolio_accounting:
+        endpoint: "globeco-portfolio-accounting-service-redis.globeco.svc.cluster.local:6379"
+        collection_interval: 10s
+        tls:
+          insecure: true
+      kafkametrics/execution_service:
+        cluster_alias: kafka-execution-service
+        brokers: ["globeco-execution-service-kafka.globeco.svc.cluster.local:9092"]
+        protocol_version: 3.0.0
+        scrapers:
+          - brokers
+          - topics
+          - consumers
+        collection_interval: 30s
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 1024
+        send_batch_max_size: 2048
+      memory_limiter:
+        limit_mib: 512
+        spike_limit_mib: 128
+        check_interval: 5s
+      k8sattributes:
+        auth_type: "serviceAccount"
+        passthrough: false
+        wait_for_metadata: true
+        filter:
+          node_from_env_var: MY_NODE_NAME
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.deployment.name
+            - k8s.namespace.name
+            - k8s.node.name
+            - k8s.pod.start_time
+            - k8s.deployment.name
+            - k8s.daemonset.name
+            - k8s.statefulset.name
+            - k8s.job.name
+            - k8s.container.name
+            - container.image.name
+            - container.id
+            - container.image.tag
+            # - k8s.pod.ip
+          labels:
+            - tag_name: k8s.pod.label.app
+              key: app
+              from: pod
+            - tag_name: k8s.pod.label.version
+              key: version
+              from: pod
+        
+        pod_association: # How to associate the data to a pod (order matters)
+          - sources: # First try to use the value of the resource attribute k8s.pod.ip
+              - from: resource_attribute
+                name: k8s.pod.ip
+          - sources: # Then try to use the value of the resource attribute k8s.pod.uid
+              - from: resource_attribute
+                name: k8s.pod.uid
+          - sources: # If neither of those work, use the request's connection to get the pod IP.
+              - from: connection
+        
+        # pod_association:
+          
+        #   - sources:
+        #     - from: connection
+
+        #   # 1. Try explicit resource attributes (if set by apps) - THIS SHOULD BE FIRST
+        #   - sources:
+        #     - from: resource_attribute
+        #       name: k8s.pod.ip
+        #     - from: resource_attribute
+        #       name: k8s.pod.name
+          
+          
+
+        #   # 2. Try connection-based (fallback for when resource_attribute is not set)
+        #   - sources:
+        #       - from: connection
+          
+        #   # 3. Try service.name based association (fallback)
+        #   - sources:
+        #       - from: resource_attribute
+        #         name: service.name
+        #       - from: resource_attribute  
+        #         name: k8s.namespace.name
+          
+        #   # 4. Try pod name + namespace (if available)
+        #   - sources:
+        #       - from: resource_attribute
+        #         name: k8s.pod.name
+        #       - from: resource_attribute
+        #         name: k8s.namespace.name
+         
+      resource:
+        attributes:
+          - key: collector.type
+            value: daemonset
+            action: upsert
+      
+      # Separate resource processors for each PostgreSQL instance
+      resource/postgres_trade:
+        attributes:
+          - key: instance_name
+            value: globeco-trade-service-postgresql
+            action: upsert
+          - key: postgres_type
+            value: main
+            action: upsert
+          - key: service_name
+            value: globeco-trade-service-postgresql
+            action: upsert
+      
+      resource/postgres_trade_all:
+        attributes:
+          - key: instance_name
+            value: globeco-trade-service-postgresql-all
+            action: upsert
+          - key: postgres_type
+            value: globeco
+            action: upsert
+          - key: service_name
+            value: globeco-trade-service-postgresql
+            action: upsert
+      
+      resource/postgres_allocation:
+        attributes:
+          - key: instance_name
+            value: globeco-allocation-service-postgresql
+            action: upsert
+          - key: postgres_type
+            value: main
+            action: upsert
+          - key: service_name
+            value: globeco-allocation-service-postgresql
+            action: upsert
+      
+      resource/postgres_allocation_all:
+        attributes:
+          - key: instance_name
+            value: globeco-allocation-service-postgresql-all
+            action: upsert
+          - key: postgres_type
+            value: globeco
+            action: upsert
+          - key: service_name
+            value: globeco-allocation-service-postgresql
+            action: upsert
+      
+      resource/postgres_order:
+        attributes:
+          - key: instance_name
+            value: globeco-order-service-postgresql
+            action: upsert
+          - key: postgres_type
+            value: main
+            action: upsert
+          - key: service_name
+            value: globeco-order-service-postgresql
+            action: upsert
+      
+      resource/postgres_order_all:
+        attributes:
+          - key: instance_name
+            value: globeco-order-service-postgresql-all
+            action: upsert
+          - key: postgres_type
+            value: globeco
+            action: upsert
+          - key: service_name
+            value: globeco-order-service-postgresql
+            action: upsert
+      
+      resource/postgres_pricing:
+        attributes:
+          - key: instance_name
+            value: globeco-pricing-service-postgresql
+            action: upsert
+          - key: postgres_type
+            value: main
+            action: upsert
+          - key: service_name
+            value: globeco-pricing-service-postgresql
+            action: upsert
+      
+      resource/postgres_pricing_all:
+        attributes:
+          - key: instance_name
+            value: globeco-pricing-service-postgresql-all
+            action: upsert
+          - key: postgres_type
+            value: globeco
+            action: upsert
+          - key: service_name
+            value: globeco-pricing-service-postgresql
+            action: upsert
+      
+      resource/postgres_execution:
+        attributes:
+          - key: instance_name
+            value: globeco-execution-service-postgresql
+            action: upsert
+          - key: postgres_type
+            value: main
+            action: upsert
+          - key: service_name
+            value: globeco-execution-service-postgresql
+            action: upsert
+      
+      resource/postgres_execution_all:
+        attributes:
+          - key: instance_name
+            value: globeco-execution-service-postgresql-all
+            action: upsert
+          - key: postgres_type
+            value: globeco
+            action: upsert
+          - key: service_name
+            value: globeco-execution-service-postgresql
+            action: upsert
+      
+      resource/postgres_fix:
+        attributes:
+          - key: instance_name
+            value: globeco-fix-engine-postgresql
+            action: upsert
+          - key: postgres_type
+            value: main
+            action: upsert
+          - key: service_name
+            value: globeco-fix-engine-postgresql
+            action: upsert
+      
+      resource/postgres_fix_all:
+        attributes:
+          - key: instance_name
+            value: globeco-fix-engine-postgresql-all
+            action: upsert
+          - key: postgres_type
+            value: globeco
+            action: upsert
+          - key: service_name
+            value: globeco-fix-engine-postgresql
+            action: upsert
+      
+      resource/postgres_portfolio_accounting:
+        attributes:
+          - key: instance_name
+            value: globeco-portfolio-accounting-service-postgresql
+            action: upsert
+          - key: postgres_type
+            value: main
+            action: upsert
+          - key: service_name
+            value: globeco-portfolio-accounting-service-postgresql
+            action: upsert
+      
+      resource/postgres_portfolio_accounting_all:
+        attributes:
+          - key: instance_name
+            value: globeco-portfolio-accounting-service-postgresql-all
+            action: upsert
+          - key: postgres_type
+            value: globeco
+            action: upsert
+          - key: service_name
+            value: globeco-portfolio-accounting-service-postgresql
+            action: upsert
+      
+      # resource/mongodb_order_generation:
+      #   attributes:
+      #     - key: instance_name
+      #       value: globeco-order-generation-service-mongodb
+      #       action: upsert
+      #     - key: service_name
+      #       value: globeco-order-generation-service-mongodb
+      #       action: upsert
+      
+      resource/mongodb_portfolio:
+        attributes:
+          - key: instance_name
+            value: globeco-portfolio-service-mongodb
+            action: upsert
+          - key: service_name
+            value: globeco-portfolio-service-mongodb
+            action: upsert
+      
+      resource/mongodb_security:
+        attributes:
+          - key: instance_name
+            value: globeco-security-service-mongodb
+            action: upsert
+          - key: service_name
+            value: globeco-security-service-mongodb
+            action: upsert
+      
+      resource/redis_order_generation:
+        attributes:
+          - key: instance_name
+            value: globeco-order-generation-service-redis
+            action: upsert
+          - key: service_name
+            value: globeco-order-generation-service-redis
+            action: upsert
+      
+      resource/redis_portfolio_accounting:
+        attributes:
+          - key: instance_name
+            value: globeco-portfolio-accounting-service-redis
+            action: upsert
+          - key: service_name
+            value: globeco-portfolio-accounting-service-redis
+            action: upsert
+      
+      resource/kafkametrics_execution:
+        attributes:
+          - key: instance_name
+            value: globeco-execution-service-kafka
+            action: upsert
+          - key: service_name
+            value: globeco-execution-service-kafka
+            action: upsert
+
+    exporters:
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+        namespace: ""
+        const_labels:
+          environment: "production"
+          collector: "otel-collector-daemonset"
+        metric_expiration: 5m
+        resource_to_telemetry_conversion:
+          enabled: true
+        enable_open_metrics: true
+        add_metric_suffixes: true
+
+      otlphttp/jaeger:
+        endpoint: "http://jaeger.observability.svc.cluster.local:4318"
+      debug: 
+        verbosity: detailed
+
+    extensions:
+      pprof:
+        endpoint: 0.0.0.0:1777
+      zpages:
+        endpoint: 0.0.0.0:55679
+
+    service:
+      extensions: [pprof, zpages]
+      pipelines:
+        metrics/host:
+          receivers: [hostmetrics]
+          processors: [memory_limiter, resource, batch]
+          exporters: [prometheus]
+        
+        metrics/applications:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, resource, batch]
+          exporters: [prometheus]
+
+        # metrics/services:
+        #   receivers: [otlp, hostmetrics]
+        #   processors: [memory_limiter, k8sattributes, resource, batch]
+        #   exporters: [prometheus, debug]
+        
+        
+        
+        # keep your DB/Mongo/Redis/Kafka pipelines as-is, each mapped to the right resource processor
+        
+        # Separate pipelines for Trade Service PostgreSQL instances
+        metrics/postgres_trade:
+          receivers: [postgresql/trade]
+          processors: [memory_limiter, resource/postgres_trade, batch]
+          exporters: [prometheus, debug]
+        
+        metrics/postgres_trade_all:
+          receivers: [postgresql/trade_all]
+          processors: [memory_limiter, resource/postgres_trade_all, batch]
+          exporters: [prometheus, debug]
+        
+        # Separate pipelines for Allocation Service PostgreSQL instances
+        metrics/postgres_allocation:
+          receivers: [postgresql/allocation]
+          processors: [memory_limiter, resource/postgres_allocation, batch]
+          exporters: [prometheus, debug]
+        
+        metrics/postgres_allocation_all:
+          receivers: [postgresql/allocation_all]
+          processors: [memory_limiter, resource/postgres_allocation_all, batch]
+          exporters: [prometheus, debug]
+        
+        # Separate pipelines for Order Service PostgreSQL instances
+        metrics/postgres_order:
+          receivers: [postgresql/order]
+          processors: [memory_limiter, resource/postgres_order, batch]
+          exporters: [prometheus, debug]
+        
+        metrics/postgres_order_all:
+          receivers: [postgresql/order_all]
+          processors: [memory_limiter, resource/postgres_order_all, batch]
+          exporters: [prometheus, debug]
+        
+        # Separate pipelines for Pricing Service PostgreSQL instances
+        metrics/postgres_pricing:
+          receivers: [postgresql/pricing]
+          processors: [memory_limiter, resource/postgres_pricing, batch]
+          exporters: [prometheus, debug]
+        
+        metrics/postgres_pricing_all:
+          receivers: [postgresql/pricing_all]
+          processors: [memory_limiter, resource/postgres_pricing_all, batch]
+          exporters: [prometheus, debug]
+        
+        # Separate pipelines for Execution Service PostgreSQL instances
+        metrics/postgres_execution:
+          receivers: [postgresql/execution]
+          processors: [memory_limiter, resource/postgres_execution, batch]
+          exporters: [prometheus, debug]
+        
+        metrics/postgres_execution_all:
+          receivers: [postgresql/execution_all]
+          processors: [memory_limiter, resource/postgres_execution_all, batch]
+          exporters: [prometheus, debug]
+        
+        # Separate pipelines for Fix Engine PostgreSQL instances
+        metrics/postgres_fix:
+          receivers: [postgresql/fix]
+          processors: [memory_limiter, resource/postgres_fix, batch]
+          exporters: [prometheus, debug]
+        
+        metrics/postgres_fix_all:
+          receivers: [postgresql/fix_all]
+          processors: [memory_limiter, resource/postgres_fix_all, batch]
+          exporters: [prometheus, debug]
+        
+        # Separate pipelines for Portfolio Accounting Service PostgreSQL instances
+        metrics/postgres_portfolio_accounting:
+          receivers: [postgresql/portfolio_accounting]
+          processors: [memory_limiter, resource/postgres_portfolio_accounting, batch]
+          exporters: [prometheus, debug]
+        
+        metrics/postgres_portfolio_accounting_all:
+          receivers: [postgresql/portfolio_accounting_all]
+          processors: [memory_limiter, resource/postgres_portfolio_accounting_all, batch]
+          exporters: [prometheus, debug]
+        
+        # metrics/mongodb_order_generation:
+        #   receivers: [mongodb/order_generation]
+        #   processors: [memory_limiter, resource/mongodb_order_generation, batch]
+        #   exporters: [prometheus, debug]
+        
+        metrics/mongodb_portfolio:
+          receivers: [mongodb/portfolio]
+          processors: [memory_limiter, resource/mongodb_portfolio, batch]
+          exporters: [prometheus, debug]
+        
+        metrics/mongodb_security:
+          receivers: [mongodb/security]
+          processors: [memory_limiter, resource/mongodb_security, batch]
+          exporters: [prometheus, debug]
+        
+        metrics/redis_order_generation:
+          receivers: [redis/order_generation]
+          processors: [memory_limiter, resource/redis_order_generation, batch]
+          exporters: [prometheus, debug]
+        
+        metrics/redis_portfolio_accounting:
+          receivers: [redis/portfolio_accounting]
+          processors: [memory_limiter, resource/redis_portfolio_accounting, batch]
+          exporters: [prometheus, debug]
+        
+        metrics/kafkametrics_execution_service:
+          receivers: [kafkametrics/execution_service]
+          processors: [memory_limiter, resource/kafkametrics_execution, batch]
+          exporters: [prometheus, debug]
+        
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, resource, batch]
+          exporters: [otlphttp/jaeger]
+
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, resource, batch]
+          exporters: [debug]
+
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1024Mi
+    requests:
+      cpu: 500m
+      memory: 1024Mi
+---
+# Source: globeco/charts/gateway-helm/charts/crds/templates/gatewayapi-safe-upgrade-policy.yaml
+#
+# config/crd/experimental/gateway.networking.k8s.io_vap_safeupgrades.yaml
+#
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  annotations:
+    gateway.networking.k8s.io/bundle-version: v1.5.0-dev
+    gateway.networking.k8s.io/channel: standard
+  name: "safe-upgrades.gateway.networking.k8s.io"
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:   ["apiextensions.k8s.io"]
+      apiVersions: ["v1"]
+      operations:  ["CREATE", "UPDATE"]
+      resources:   ["*"]
+  validations:
+    - expression: "object.spec.group != 'gateway.networking.k8s.io' || oldObject == null || (
+        has(object.metadata.annotations) && object.metadata.annotations.exists(k, k == 'gateway.networking.k8s.io/channel') && 
+        object.metadata.annotations['gateway.networking.k8s.io/channel'] == 'standard' ) || (
+        oldObject != null && has(oldObject.metadata.annotations) && oldObject.metadata.annotations.exists(k, k == 'gateway.networking.k8s.io/channel') && 
+        oldObject.metadata.annotations['gateway.networking.k8s.io/channel'] == 'experimental' )"
+      message: "Installing experimental CRDs on top of standard channel CRDs is prohibited by default. Uninstall ValidatingAdmissionPolicy safe-upgrades.gateway.networking.k8s.io to install experimental CRDs on top of standard channel CRDs."
+      reason: Invalid
+    - expression: "object.spec.group != 'gateway.networking.k8s.io' ||
+        (has(object.metadata.annotations) && object.metadata.annotations.exists(k, k == 'gateway.networking.k8s.io/bundle-version') &&
+        !matches(object.metadata.annotations['gateway.networking.k8s.io/bundle-version'], 'v1.[0-4].\\\\d+') &&
+        !matches(object.metadata.annotations['gateway.networking.k8s.io/bundle-version'], 'v0'))" #TODO Kubernetes 1.37: Migrate to kubernetes semver library
+      message: "Installing CRDs with version before v1.5.0 is prohibited by default. Uninstall ValidatingAdmissionPolicy safe-upgrades.gateway.networking.k8s.io to install older versions."
+      reason: Invalid
+---
+# Source: globeco/charts/gateway-helm/charts/crds/templates/gatewayapi-safe-upgrade-policy.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  annotations:
+    gateway.networking.k8s.io/bundle-version: v1.5.0-dev
+    gateway.networking.k8s.io/channel: standard
+  name: safe-upgrades.gateway.networking.k8s.io
+spec:
+  policyName: safe-upgrades.gateway.networking.k8s.io
+  validationActions: [Deny]
+  matchResources:
+    resourceRules:
+    - apiGroups:   ["apiextensions.k8s.io"]
+      apiVersions: ["v1"]
+      resources:   ["customresourcedefinitions"]
+      operations:  ["CREATE", "UPDATE"]
+---
+# Source: globeco/charts/gateway-helm/templates/certgen-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: release-name-gateway-helm-certgen
+  namespace: globeco
+  labels:
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": pre-install, pre-upgrade
+    "helm.sh/hook-weight": "-1"   # Ensure rbac is created before the certgen job when using ArgoCD.
+---
+# Source: globeco/templates/globeco-kafka/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: globeco-execution-service-kafka-config
+  namespace: globeco
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "0"
+data:
+  server.properties: |
+    # KRaft mode configuration
+    process.roles=broker,controller
+    node.id=1
+    controller.quorum.voters=1@globeco-execution-service-kafka-0.globeco-execution-service-kafka-headless.globeco.svc.cluster.local:9093
+    
+    # Listeners
+    listeners=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+    advertised.listeners=PLAINTEXT://globeco-execution-service-kafka-0.globeco-execution-service-kafka-headless.globeco.svc.cluster.local:9092
+    listener.security.protocol.map=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+    controller.listener.names=CONTROLLER
+    inter.broker.listener.name=PLAINTEXT
+    
+    # Log directories
+    log.dirs=/opt/kafka/data
+    
+    # Cluster configuration
+    offsets.topic.replication.factor=1
+    transaction.state.log.replication.factor=1
+    transaction.state.log.min.isr=1
+    default.replication.factor=1
+    min.insync.replicas=1
+    
+    # Performance tuning
+    num.network.threads=3
+    num.io.threads=8
+    socket.send.buffer.bytes=102400
+    socket.receive.buffer.bytes=102400
+    socket.request.max.bytes=104857600
+    
+    # Log retention
+    log.retention.hours=168
+    log.segment.bytes=1073741824
+    log.retention.check.interval.ms=300000
+    
+    # Other settings
+    group.initial.rebalance.delay.ms=0
+    auto.create.topics.enable=false
+---
+# Source: globeco/templates/globeco-kafka/kafka-persistent-volume-claim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: execution-service-kafka-pvc
+  namespace: globeco
+  labels:
+    app: globeco-execution-service-kafka
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "0"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-gp3
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: globeco/charts/gateway-helm/templates/certgen-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: 'release-name-gateway-helm-certgen:globeco'
+  labels:
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": pre-install, pre-upgrade
+    "helm.sh/hook-weight": "-1"   # Ensure rbac is created before the certgen job when using ArgoCD.
+rules:
+  - apiGroups:
+    - admissionregistration.k8s.io
+    resources:
+    - mutatingwebhookconfigurations
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - mutatingwebhookconfigurations
+    resourceNames:
+      - 'envoy-gateway-topology-injector.globeco'
+    verbs:
+      - update
+      - patch
+---
+# Source: globeco/charts/gateway-helm/templates/certgen-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: 'release-name-gateway-helm-certgen:globeco'
+  labels:
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": pre-install, pre-upgrade
+    "helm.sh/hook-weight": "-1"   # Ensure rbac is created before the certgen job when using ArgoCD.
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'release-name-gateway-helm-certgen:globeco'
+subjects:
+  - kind: ServiceAccount
+    name: 'release-name-gateway-helm-certgen'
+    namespace: globeco
+---
+# Source: globeco/charts/gateway-helm/templates/certgen-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-gateway-helm-certgen
+  namespace: globeco
+  labels:
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": pre-install, pre-upgrade
+    "helm.sh/hook-weight": "-1"   # Ensure rbac is created before the certgen job when using ArgoCD.
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - create
+  - update
+---
+# Source: globeco/charts/gateway-helm/templates/certgen-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-gateway-helm-certgen
+  namespace: globeco
+  labels:
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": pre-install, pre-upgrade
+    "helm.sh/hook-weight": "-1"   # Ensure rbac is created before the certgen job when using ArgoCD.
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: 'release-name-gateway-helm-certgen'
+subjects:
+- kind: ServiceAccount
+  name: 'release-name-gateway-helm-certgen'
+  namespace: globeco
+---
+# Source: globeco/templates/globeco-kafka/service-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-execution-service-kafka-headless
+  namespace: globeco
+  labels:
+    app: globeco-execution-service-kafka
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "0"
+spec:
+  clusterIP: None
+  ports:
+    - name: kafka
+      port: 9092
+      targetPort: 9092
+    - name: controller
+      port: 9093
+      targetPort: 9093
+  selector:
+    app: globeco-execution-service-kafka
+---
+# Source: globeco/templates/globeco-kafka/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: globeco-execution-service-kafka
+  namespace: globeco
+  labels:
+    app: globeco-execution-service-kafka
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "0"
+spec:
+  type: ClusterIP
+  ports:
+    - name: kafka
+      port: 9092
+      targetPort: 9092
+  selector:
+    app: globeco-execution-service-kafka
+---
+# Source: globeco/templates/globeco-kafka/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: globeco-execution-service-kafka
+  namespace: globeco
+  labels:
+    app: globeco-execution-service-kafka
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "5"
+spec:
+  serviceName: globeco-execution-service-kafka-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: globeco-execution-service-kafka
+
+  template:
+    metadata:
+      labels:
+        app: globeco-execution-service-kafka
+    spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+        - name: kafka-init
+          image: apache/kafka:4.0.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "Initializing Kafka storage..."
+              echo "Running as user: $(id)"
+              echo "Data directory info:"
+              ls -la /opt/kafka/
+              
+              # Create data directory
+              mkdir -p /opt/kafka/data
+              
+              # Clean up filesystem artifacts that Kafka doesn't allow
+              echo "Cleaning up filesystem artifacts..."
+              if [ -d /opt/kafka/data/lost+found ]; then
+                echo "Removing lost+found directory..."
+                rm -rf /opt/kafka/data/lost+found
+              fi
+              
+              # Remove any other non-Kafka directories/files that might cause issues
+              find /opt/kafka/data -maxdepth 1 -type d -name "lost+found" -exec rm -rf {} + 2>/dev/null || true
+              
+              echo "Data directory contents after cleanup:"
+              ls -la /opt/kafka/data/
+              
+              # Check if already formatted
+              if [ ! -f /opt/kafka/data/meta.properties ]; then
+                echo "Formatting Kafka storage for KRaft mode..."
+                # Generate a consistent cluster ID (22 characters, base64url safe)
+                CLUSTER_ID=$(echo -n "globeco-kafka-cluster" | sha256sum | cut -c1-22)
+                echo "Using cluster ID: $CLUSTER_ID"
+                
+                # Copy config to a writable location and update the log.dirs path
+                cp /tmp/kafka-config/server.properties /tmp/server.properties
+                sed -i 's|log\.dirs=.*|log.dirs=/opt/kafka/data|g' /tmp/server.properties
+                
+                echo "Config file log.dirs setting:"
+                grep "log.dirs" /tmp/server.properties
+                
+                # Format the storage
+                /opt/kafka/bin/kafka-storage.sh format \
+                  --config /tmp/server.properties \
+                  --cluster-id $CLUSTER_ID \
+                  --ignore-formatted
+                
+                echo "Kafka storage formatted successfully"
+                ls -la /opt/kafka/data/
+                
+                # Verify meta.properties was created
+                if [ -f /opt/kafka/data/meta.properties ]; then
+                  echo "meta.properties created successfully:"
+                  cat /opt/kafka/data/meta.properties
+                else
+                  echo "ERROR: meta.properties not found after formatting"
+                  exit 1
+                fi
+              else
+                echo "Kafka storage already formatted, skipping..."
+                echo "Existing meta.properties:"
+                cat /opt/kafka/data/meta.properties
+                ls -la /opt/kafka/data/
+              fi
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /opt/kafka/data
+            - name: kafka-config
+              mountPath: /tmp/kafka-config
+      containers:
+        - name: kafka
+          image: apache/kafka:4.0.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+          ports:
+            - containerPort: 9092
+              name: kafka
+            - containerPort: 9093
+              name: controller
+          env:
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xmx1G -Xms1G"
+            - name: KAFKA_JVM_PERFORMANCE_OPTS
+              value: "-server -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35"
+            - name: KAFKA_OPTS
+              value: "-Dkafka.logs.dir=/opt/kafka/data"
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /opt/kafka/data
+            - name: kafka-config
+              mountPath: /tmp/kafka-config
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "Starting Kafka server..."
+              echo "Running as user: $(id)"
+              echo "Data directory permissions:"
+              ls -la /opt/kafka/data/
+              
+              # Ensure data directory is writable
+              if [ ! -w /opt/kafka/data ]; then
+                echo "ERROR: /opt/kafka/data is not writable"
+                exit 1
+              fi
+              
+              # Copy config to writable location
+              cp /tmp/kafka-config/server.properties /opt/kafka/config/server.properties
+              
+              # Start Kafka
+              exec /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties
+          livenessProbe:
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 24
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "1000m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+      volumes:
+        - name: kafka-data
+          persistentVolumeClaim:
+            claimName: execution-service-kafka-pvc
+        - name: kafka-config
+          configMap:
+            name: globeco-execution-service-kafka-config
+---
+# Source: globeco/charts/gateway-helm/templates/certgen.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: release-name-gateway-helm-certgen
+  namespace: globeco
+  labels:
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": pre-install, pre-upgrade
+spec:
+  backoffLimit: 1
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app: certgen
+    spec:
+      containers:
+      - command:
+        - envoy-gateway
+        - certgen
+        env:
+        - name: ENVOY_GATEWAY_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: cluster.local
+        image: docker.io/envoyproxy/gateway:v1.8.2
+        imagePullPolicy: IfNotPresent
+        name: envoy-gateway-certgen
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 65532
+          runAsNonRoot: true
+          runAsUser: 65532
+          seccompProfile:
+            type: RuntimeDefault
+      imagePullSecrets: []
+      restartPolicy: Never
+      serviceAccountName: release-name-gateway-helm-certgen
+  ttlSecondsAfterFinished: 30
+---
+# Source: globeco/templates/globeco-kafka/wait_for_kafka.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: wait-for-kafka
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  template:
+    spec:
+      containers:
+      - name: kafka-wait
+        image: apache/kafka:4.0.0
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+
+          # Wait until Kafka is available
+          echo "Waiting for Kafka to be available..."
+          until /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server globeco-execution-service-kafka:9092 > /dev/null 2>&1; do
+            echo "Kafka not ready yet, retrying in 5s..."
+            sleep 5
+          done
+          echo "Kafka is available."
+
+          # Wait an additional 90 seconds for stability
+          echo "Waiting 90 seconds for Kafka to stabilize..."
+          sleep 90
+          echo "Done."
+      restartPolicy: OnFailure
+---
+# Source: globeco/charts/gateway-helm/templates/envoy-proxy-topology-injector-webhook.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: 'envoy-gateway-topology-injector.globeco'
+  annotations:
+    "helm.sh/hook": pre-install, pre-upgrade
+    "helm.sh/hook-weight": "-1"
+  labels:
+    app.kubernetes.io/component: topology-injector
+    helm.sh/chart: gateway-helm-v1.8.2
+    app.kubernetes.io/name: gateway-helm
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "v1.8.2"
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+  - name: topology.webhook.gateway.envoyproxy.io
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    clientConfig:
+      service:
+        name: envoy-gateway
+        namespace: globeco
+        path: "/inject-pod-topology"
+        port: 9443
+    failurePolicy: Ignore
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods/binding"]
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: In
+          values:
+            - globeco
