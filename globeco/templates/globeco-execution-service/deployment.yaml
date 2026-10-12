@@ -32,7 +32,7 @@ spec:
           command: ['sh', '-c', 'until nc -z globeco-execution-service-kafka 9092; do echo "Waiting for Kafka..."; sleep 2; done']
       containers:
         - name: globeco-execution-service
-          image: kasbench/globeco-execution-service:1.0.7
+          image: kasbench/globeco-execution-service:1.0.8
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8084
