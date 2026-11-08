@@ -167,8 +167,8 @@ with open("./globeco/templates/_resources.tpl", "w", encoding="utf-8") as tpl:
         tpl.write(tabs + "resources:\n")
         tpl.write(tabs + "  requests:\n")
         for i in range(2,7):
-            cpu_request = max_cpu_millicores * ((i+1) * 0.5)
-            mem_request = max_mem_mi * ((i+1) * 0.5)
+            cpu_request = max_cpu_millicores * i    # was ((i+1) * 0.5)
+            mem_request = max_mem_mi * i          # was((i+1) * 0.5)
             if i == 2:
                 tpl.write(tabs + "    {{- if eq .Values.autoscaler \"vertical-" + str(i) + "\" }}\n")    
             else:

@@ -15,7 +15,7 @@ replicas: 5
 {{- else if eq .Values.autoscaler "horizontal-6" }}
 replicas: 6
 {{- else if contains "vertical" .Values.autoscaler }}
-replicas: 2
+replicas: 1
 {{- else }}
 replicas: 1
 {{- end }}
