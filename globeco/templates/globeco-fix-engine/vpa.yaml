@@ -25,5 +25,5 @@ spec:
     kind: Deployment
     name: globeco-fix-engine
   updatePolicy:
-    updateMode: InPlace
+    updateMode: InPlaceOrRecreate
 {{- end -}}

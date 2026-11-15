@@ -25,5 +25,5 @@ spec:
     kind: Deployment
     name: globeco-portfolio-management-portal
   updatePolicy:
-    updateMode: InPlace
+    updateMode: InPlaceOrRecreate
 {{- end -}}

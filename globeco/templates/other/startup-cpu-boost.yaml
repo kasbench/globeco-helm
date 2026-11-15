@@ -1,0 +1,50 @@
+apiVersion: autoscaling.x-k8s.io/v1alpha1
+kind: StartupCPUBoost
+metadata:
+  name: globeco-startup-cpu-boost
+  namespace: globeco
+spec:
+  selector:
+    matchLabels: {} # Matches all pods in the namespace; restrict this if needed
+  resourcePolicy:
+    containerPolicies:
+      - containerName: globeco-allocation-service
+        percentageIncrease:
+          value: 400
+      - containerName: globeco-confirmation-service
+        percentageIncrease:
+          value: 400
+      - containerName: globeco-execution-service
+        percentageIncrease:
+          value: 400
+      - containerName: globeco-fix-engine
+        percentageIncrease:
+          value: 400
+      - containerName: globeco-order-generation-service
+        percentageIncrease:
+          value: 400
+      - containerName: globeco-order-service
+        percentageIncrease:
+          value: 400
+      - containerName: globeco-portfolio-accounting-service
+        percentageIncrease:
+          value: 400
+      - containerName: globeco-portfolio-management-portal
+        percentageIncrease:
+          value: 400
+      - containerName: globeco-portfolio-service
+        percentageIncrease:
+          value: 400
+      - containerName: globeco-pricing-service
+        percentageIncrease:
+          value: 400
+      - containerName: globeco-security-service
+        percentageIncrease:
+          value: 400
+      - containerName: globeco-trade-service
+        percentageIncrease:
+          value: 400
+  durationPolicy:
+    podCondition:
+      type: Ready
+      status: "True"

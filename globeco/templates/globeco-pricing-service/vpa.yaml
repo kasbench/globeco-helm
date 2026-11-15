@@ -25,5 +25,5 @@ spec:
     kind: Deployment
     name: globeco-pricing-service
   updatePolicy:
-    updateMode: InPlace
+    updateMode: InPlaceOrRecreate
 {{- end -}}
