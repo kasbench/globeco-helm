@@ -25,5 +25,5 @@ spec:
     kind: Deployment
     name: globeco-order-generation-service
   updatePolicy:
-    updateMode: InPlaceOrRecreate
+    updateMode: InPlace
 {{- end -}}

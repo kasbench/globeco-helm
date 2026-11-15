@@ -137,7 +137,7 @@ for file in templates_dir.rglob('vpa.yaml'):
         container_policy['maxAllowed']['cpu'] = "6000m"
         container_policy['maxAllowed']['memory'] = "6Gi"
 
-    # data["spec"]["updatePolicy"]["updateMode"] = "InPlace"
+    data["spec"]["updatePolicy"]["updateMode"] = "InPlace"
     data["spec"]["resourcePolicy"]["containerPolicies"][0]["controlledValues"] = "RequestsAndLimits"
 
     # Dump the yaml to a string
