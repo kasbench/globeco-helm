@@ -13,7 +13,7 @@ spec:
       controlledResources:
       - cpu
       - memory
-      controlledValues: RequestsOnly
+      controlledValues: RequestsAndLimits
       maxAllowed:
         cpu: 6000m
         memory: 6Gi
@@ -25,5 +25,5 @@ spec:
     kind: Deployment
     name: globeco-fix-engine
   updatePolicy:
-    updateMode: InPlaceOrRecreate
+    updateMode: InPlace
 {{- end -}}

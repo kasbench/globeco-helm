@@ -3,7 +3,7 @@ Replicas by autoscaler
 */}}
 {{- define "globeco.replicas" -}}
 {{- if eq .Values.autoscaler "vpa" }}
-replicas: 2
+replicas: 1
 {{- else if eq .Values.autoscaler "horizontal-2" }}
 replicas: 2
 {{- else if eq .Values.autoscaler "horizontal-3" }}

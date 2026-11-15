@@ -88,6 +88,17 @@ for file in templates_dir.rglob('*'):
         contents = contents.replace('(slice "hpa" "keda")', '(list "hpa" "keda")')
         file.write_text(contents)
 
+# Iterate through every file under globeco/templates recursively and change "maxUnavailable: 1" to "maxUnavailable: 0" and
+# "maxSurge: 0" to "maxSurge: 1"
+for file in templates_dir.rglob('*'):
+    if file.is_file():
+        # print("Editing file: ", file)
+        contents = file.read_text()
+        contents = contents.replace('maxUnavailable: 1', 'maxUnavailable: 0')
+        contents = contents.replace('maxSurge: 0', 'maxSurge: 1')
+        file.write_text(contents)
+# Iterate through every file under globeco/templates recursively and remove the first line if it starts with "{{- if eq .Values.autoscaler"
+
 # Store the contents of json file ../data/cpu_usage.json as a dictionary
 cpu_usage = json.load(open('./data/cpu_usage.json'))   
 memory_usage = json.load(open('./data/memory_usage.json'))
@@ -101,6 +112,9 @@ for file in templates_dir.rglob('vpa.yaml'):
 
     # Read the file
     contents = file.read_text()
+
+    # Replace updateMode: InPlaceOrRecreate with updateMode: InPlace
+    # contents = contents.replace('updateMode: InPlaceOrRecreate', 'updateMode: InPlace')
 
     # Strip out the lines beginning with "{{"
     contents = '\n'.join([line for line in contents.split('\n') if not line.strip().startswith('{{')])
@@ -122,6 +136,9 @@ for file in templates_dir.rglob('vpa.yaml'):
         container_policy['minAllowed']['cpu'] = str(max_cpu_millicores) + 'm'
         container_policy['maxAllowed']['cpu'] = "6000m"
         container_policy['maxAllowed']['memory'] = "6Gi"
+
+    data["spec"]["updatePolicy"]["updateMode"] = "InPlace"
+    data["spec"]["resourcePolicy"]["containerPolicies"][0]["controlledValues"] = "RequestsAndLimits"
 
     # Dump the yaml to a string
     data = yaml.dump(data, default_flow_style=False)
@@ -165,24 +182,26 @@ with open("./globeco/templates/_resources.tpl", "w", encoding="utf-8") as tpl:
         tabs = " " * 10
         tabs = ""
         tpl.write(tabs + "resources:\n")
-        tpl.write(tabs + "  requests:\n")
-        for i in range(2,7):
-            cpu_request = max_cpu_millicores * i    # was ((i+1) * 0.5)
-            mem_request = max_mem_mi * i          # was((i+1) * 0.5)
-            if i == 2:
-                tpl.write(tabs + "    {{- if eq .Values.autoscaler \"vertical-" + str(i) + "\" }}\n")    
-            else:
-                tpl.write(tabs + "    {{- else if eq .Values.autoscaler \"vertical-" + str(i) + "\" }}\n")    
-            tpl.write(tabs + f"    cpu: \"{int(cpu_request)}m\"\n")
-            tpl.write(tabs + f"    memory: \"{int(mem_request)}Mi\"\n")
-        
-        tpl.write(tabs + "    {{- else }}\n")
-        tpl.write(tabs + f"    cpu: \"{int(max_cpu_millicores)}m\"\n")
-        tpl.write(tabs + f"    memory: \"{int(max_mem_mi)}Mi\"\n")
-        tpl.write(tabs + "    {{- end }}\n")
-        tpl.write(tabs + "  limits:\n")
-        # print(tabs + f"    memory: \"{mem_request}Mi\"")
-        tpl.write(tabs + f"    memory: \"6000Mi\"\n")
+        sections = ["  requests:\n", "  limits:\n"]
+        for section in sections:
+            tpl.write(tabs + section)
+            for i in range(2,7):
+                cpu_request = max_cpu_millicores * i    # was ((i+1) * 0.5)
+                mem_request = max_mem_mi * i          # was((i+1) * 0.5)
+                if i == 2:
+                    tpl.write(tabs + "    {{- if eq .Values.autoscaler \"vertical-" + str(i) + "\" }}\n")    
+                else:
+                    tpl.write(tabs + "    {{- else if eq .Values.autoscaler \"vertical-" + str(i) + "\" }}\n")    
+                tpl.write(tabs + f"    cpu: \"{int(cpu_request)}m\"\n")
+                tpl.write(tabs + f"    memory: \"{int(mem_request)}Mi\"\n")
+            
+            tpl.write(tabs + "    {{- else }}\n")
+            tpl.write(tabs + f"    cpu: \"{int(max_cpu_millicores)}m\"\n")
+            tpl.write(tabs + f"    memory: \"{int(max_mem_mi)}Mi\"\n")
+            tpl.write(tabs + "    {{- end }}\n")
+        # tpl.write(tabs + "  limits:\n")
+        # # print(tabs + f"    memory: \"{mem_request}Mi\"")
+        # tpl.write(tabs + f"    memory: \"6000Mi\"\n")
         tpl.write("{{- end }}\n\n") 
         
     
