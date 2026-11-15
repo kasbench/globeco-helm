@@ -132,7 +132,7 @@ spec:
             - resourceName: cpu
               restartPolicy: NotRequired
             - resourceName: memory
-              restartPolicy: RestartContainer
+              restartPolicy: NotRequired
           {{- include "globeco.globecoOrderServiceResources" . | nindent 10 }}
           livenessProbe:
             httpGet:

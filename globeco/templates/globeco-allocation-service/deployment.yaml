@@ -139,7 +139,7 @@ spec:
               restartPolicy: NotRequired
 
             - resourceName: memory
-              restartPolicy: RestartContainer
+              restartPolicy: NotRequired
 
           {{- include "globeco.globecoAllocationServiceResources" . | nindent 10 }}
 

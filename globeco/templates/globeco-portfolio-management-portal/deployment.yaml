@@ -148,7 +148,7 @@ spec:
             - resourceName: cpu
               restartPolicy: NotRequired
             - resourceName: memory
-              restartPolicy: RestartContainer
+              restartPolicy: NotRequired
           {{- include "globeco.globecoPortfolioManagementPortalResources" . | nindent 10 }}
 
 {{- if eq .Values.autoscaler "vpa" }}

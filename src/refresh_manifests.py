@@ -97,7 +97,14 @@ for file in templates_dir.rglob('*'):
         contents = contents.replace('maxUnavailable: 1', 'maxUnavailable: 0')
         contents = contents.replace('maxSurge: 0', 'maxSurge: 1')
         file.write_text(contents)
-# Iterate through every file under globeco/templates recursively and remove the first line if it starts with "{{- if eq .Values.autoscaler"
+
+# Iterate through every file under globeco/templates recursively and change "restartPolicy: RestartContainer" to "restartPolicy: NotRequired"
+for file in templates_dir.rglob('*'):
+    if file.is_file():
+        # print("Editing file: ", file)
+        contents = file.read_text()
+        contents = contents.replace('restartPolicy: RestartContainer', 'restartPolicy: NotRequired')
+        file.write_text(contents)
 
 # Store the contents of json file ../data/cpu_usage.json as a dictionary
 cpu_usage = json.load(open('./data/cpu_usage.json'))   

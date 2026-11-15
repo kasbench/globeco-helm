@@ -100,7 +100,7 @@ spec:
             - resourceName: cpu
               restartPolicy: NotRequired
             - resourceName: memory
-              restartPolicy: RestartContainer
+              restartPolicy: NotRequired
 
           {{- include "globeco.globecoTradeServiceResources" . | nindent 10 }}
           startupProbe:

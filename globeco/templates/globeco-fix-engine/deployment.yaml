@@ -122,7 +122,7 @@ spec:
             - resourceName: cpu
               restartPolicy: NotRequired
             - resourceName: memory
-              restartPolicy: RestartContainer
+              restartPolicy: NotRequired
           {{- include "globeco.globecoFixEngineResources" . | nindent 10 }}
           # Liveness only checks that the process is up (dedicated health port).
           # It must NOT depend on Kafka state, so a transient Kafka issue does
