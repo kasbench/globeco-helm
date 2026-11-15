@@ -36,6 +36,13 @@ spec:
                 sleep 2
               done
               echo "PostgreSQL is ready."
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
         - name: wait-for-redis
           image: redis:7-alpine
           command:
@@ -47,6 +54,13 @@ spec:
                 sleep 2
               done
               echo "Redis is ready."
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
       containers:
         - name: globeco-portfolio-accounting-service
           image: kasbench/globeco-portfolio-accounting-service-server:1.0.2
