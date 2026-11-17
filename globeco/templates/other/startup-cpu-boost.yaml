@@ -1,4 +1,4 @@
-{{- if not (has .Values.autoscaler (list "vertical-3" "vertical-4" "vertical-5", "horizontal-5")) }}
+{{- if not (has .Values.autoscaler (list "vertical-3" "vertical-4" "vertical-5" "horizontal-5")) }}
 apiVersion: autoscaling.x-k8s.io/v1alpha1
 kind: StartupCPUBoost
 metadata:
